@@ -50,6 +50,7 @@ dependencies:
   # Geolocation
   geolocator: ^13.0.2
   flutter_secure_storage: ^10.0.0
+  mobile_scanner: ^7.1.4
 
   # State Management (optional - uncomment if needed)
   # provider: ^6.1.2

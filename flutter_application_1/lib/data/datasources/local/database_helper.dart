@@ -82,6 +82,89 @@ class DatabaseHelper {
       ('Zone mixte')
     ''');
 
+    // Create ref_commune reference table
+    await db.execute('''
+      CREATE TABLE ref_commune (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        libelle TEXT NOT NULL
+      )
+    ''');
+
+    // Populate ref_commune with Kinshasa communes
+    await db.execute('''
+      INSERT INTO ref_commune (libelle) VALUES
+      ('Bandalungwa'),
+      ('Barumbu'),
+      ('Bumbu'),
+      ('Gombe'),
+      ('Kalamu'),
+      ('Kasa-Vubu'),
+      ('Kimbanseke'),
+      ('Kinshasa'),
+      ('Kintambo'),
+      ('Kisenso'),
+      ('Lemba'),
+      ('Limete'),
+      ('Lingwala'),
+      ('Makala'),
+      ('Maluku'),
+      ('Masina'),
+      ('Matete'),
+      ('Mont-Ngafula'),
+      ('Ndjili'),
+      ('Ngaba'),
+      ('Ngaliema'),
+      ('Ngiri-Ngiri'),
+      ('Nsele'),
+      ('Selembao')
+    ''');
+
+    // Create ref_quartier reference table
+    await db.execute('''
+      CREATE TABLE ref_quartier (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        libelle TEXT NOT NULL
+      )
+    ''');
+
+    // Populate ref_quartier with sample quartiers
+    await db.execute('''
+      INSERT INTO ref_quartier (libelle) VALUES
+      ('Centre-ville'),
+      ('Matonge'),
+      ('Yolo'),
+      ('Righini'),
+      ('Livulu'),
+      ('Mbanza-Lemba'),
+      ('Funa'),
+      ('Industriel'),
+      ('Résidentiel'),
+      ('Commercial')
+    ''');
+
+    // Create ref_avenue reference table
+    await db.execute('''
+      CREATE TABLE ref_avenue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        libelle TEXT NOT NULL
+      )
+    ''');
+
+    // Populate ref_avenue with sample avenues
+    await db.execute('''
+      INSERT INTO ref_avenue (libelle) VALUES
+      ('Avenue de la Libération'),
+      ('Avenue Lumumba'),
+      ('Avenue Kasavubu'),
+      ('Avenue du Commerce'),
+      ('Avenue de la Paix'),
+      ('Avenue des Huileries'),
+      ('Avenue Colonel Mondjiba'),
+      ('Avenue de l''Université'),
+      ('Avenue Sendwe'),
+      ('Avenue Kasa-Vubu')
+    ''');
+
     // Create contribuables table
     await db.execute('''
       CREATE TABLE contribuables (
@@ -96,7 +179,11 @@ class DatabaseHelper {
         telephone1 TEXT NOT NULL,
         telephone2 TEXT,
         email TEXT,
-        adresse TEXT NOT NULL,
+        commune_id INTEGER,
+        quartier_id INTEGER,
+        avenue_id INTEGER,
+        rue TEXT,
+        numero_parcelle TEXT,
         origine_fiche TEXT NOT NULL,
         activite_id INTEGER,
         zone_id INTEGER,
@@ -109,9 +196,14 @@ class DatabaseHelper {
         cree_par TEXT NOT NULL,
         date_maj TEXT,
         maj_par TEXT,
+        forme_juridique TEXT,
+        numero_rccm TEXT,
         updated_at TEXT,
         FOREIGN KEY (activite_id) REFERENCES ref_type_activite (id),
-        FOREIGN KEY (zone_id) REFERENCES ref_zone_type (id)
+        FOREIGN KEY (zone_id) REFERENCES ref_zone_type (id),
+        FOREIGN KEY (commune_id) REFERENCES ref_commune (id),
+        FOREIGN KEY (quartier_id) REFERENCES ref_quartier (id),
+        FOREIGN KEY (avenue_id) REFERENCES ref_avenue (id)
       )
     ''');
   }
@@ -203,6 +295,155 @@ class DatabaseHelper {
 
       // Add zone_id column to contribuables
       await db.execute('ALTER TABLE contribuables ADD COLUMN zone_id INTEGER');
+    }
+    if (oldVersion < 7) {
+      // Create parcelles table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS parcelles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          code_parcelle TEXT,
+          reference_cadastrale TEXT,
+          commune TEXT,
+          quartier TEXT,
+          rue_avenue TEXT,
+          numero_adresse TEXT,
+          superficie_m2 REAL,
+          gps_lat REAL,
+          gps_lon REAL,
+          statut_parcelle TEXT NOT NULL,
+          date_creation TEXT,
+          date_mise_a_jour TEXT,
+          source_donnee TEXT,
+          created_at TEXT,
+          updated_at TEXT
+        )
+      ''');
+
+      // Create personnes table (1:1 with parcelle)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS personnes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type_personne TEXT NOT NULL,
+          nom_raison_sociale TEXT,
+          nif TEXT,
+          contact TEXT,
+          adresse_postale TEXT,
+          parcelle_id INTEGER UNIQUE,
+          created_at TEXT,
+          updated_at TEXT,
+          FOREIGN KEY (parcelle_id) REFERENCES parcelles (id) ON DELETE CASCADE
+        )
+      ''');
+
+      // Create batiments table (1:N with parcelle)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS batiments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          parcelle_id INTEGER,
+          type_batiment TEXT NOT NULL,
+          nombre_etages INTEGER,
+          annee_construction INTEGER,
+          surface_batie_m2 REAL,
+          usage_principal TEXT NOT NULL,
+          statut_batiment TEXT NOT NULL,
+          created_at TEXT,
+          updated_at TEXT,
+          FOREIGN KEY (parcelle_id) REFERENCES parcelles (id) ON DELETE CASCADE
+        )
+      ''');
+    }
+    if (oldVersion < 8) {
+      // Add forme_juridique column to contribuables table
+      await db.execute('ALTER TABLE contribuables ADD COLUMN forme_juridique TEXT');
+    }
+    if (oldVersion < 9) {
+      // Add numero_rccm column to contribuables table
+      await db.execute('ALTER TABLE contribuables ADD COLUMN numero_rccm TEXT');
+    }
+    if (oldVersion < 10) {
+      // Create ref_commune reference table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ref_commune (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          libelle TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        INSERT INTO ref_commune (libelle) VALUES
+        ('Bandalungwa'),
+        ('Barumbu'),
+        ('Bumbu'),
+        ('Gombe'),
+        ('Kalamu'),
+        ('Kasa-Vubu'),
+        ('Kimbanseke'),
+        ('Kinshasa'),
+        ('Kintambo'),
+        ('Kisenso'),
+        ('Lemba'),
+        ('Limete'),
+        ('Lingwala'),
+        ('Makala'),
+        ('Maluku'),
+        ('Masina'),
+        ('Matete'),
+        ('Mont-Ngafula'),
+        ('Ndjili'),
+        ('Ngaba'),
+        ('Ngaliema'),
+        ('Ngiri-Ngiri'),
+        ('Nsele'),
+        ('Selembao')
+      ''');
+
+      // Create ref_quartier reference table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ref_quartier (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          libelle TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        INSERT INTO ref_quartier (libelle) VALUES
+        ('Centre-ville'),
+        ('Matonge'),
+        ('Yolo'),
+        ('Righini'),
+        ('Livulu'),
+        ('Mbanza-Lemba'),
+        ('Funa'),
+        ('Industriel'),
+        ('Résidentiel'),
+        ('Commercial')
+      ''');
+
+      // Create ref_avenue reference table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ref_avenue (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          libelle TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        INSERT INTO ref_avenue (libelle) VALUES
+        ('Avenue de la Libération'),
+        ('Avenue Lumumba'),
+        ('Avenue Kasavubu'),
+        ('Avenue du Commerce'),
+        ('Avenue de la Paix'),
+        ('Avenue des Huileries'),
+        ('Avenue Colonel Mondjiba'),
+        ('Avenue de l''Université'),
+        ('Avenue Sendwe'),
+        ('Avenue Kasa-Vubu')
+      ''');
+
+      // Add new address columns to contribuables
+      await db.execute('ALTER TABLE contribuables ADD COLUMN commune_id INTEGER');
+      await db.execute('ALTER TABLE contribuables ADD COLUMN quartier_id INTEGER');
+      await db.execute('ALTER TABLE contribuables ADD COLUMN avenue_id INTEGER');
+      await db.execute('ALTER TABLE contribuables ADD COLUMN rue TEXT');
+      await db.execute('ALTER TABLE contribuables ADD COLUMN numero_parcelle TEXT');
     }
   }
 

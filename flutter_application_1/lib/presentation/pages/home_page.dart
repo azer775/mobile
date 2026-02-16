@@ -119,6 +119,16 @@ class HomePage extends StatelessWidget {
               icon: const Icon(Icons.account_balance),
               label: const Text('Contribuables'),
             ),
+            const SizedBox(height: 16),
+
+            // Button to access the Immobilier module
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, '/immobilier');
+              },
+              icon: const Icon(Icons.landscape),
+              label: const Text('Immobilier'),
+            ),
           ],
         ),
       ),

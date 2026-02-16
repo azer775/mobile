@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../../data/models/dto/authentication_request_dto.dart';
 import '../constants/api_constants.dart';

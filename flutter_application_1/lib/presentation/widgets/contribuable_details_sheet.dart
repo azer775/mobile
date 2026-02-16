@@ -89,7 +89,6 @@ class ContribuableDetailsSheet extends StatelessWidget {
                 _buildDetailRow(Icons.phone_android, 'Téléphone 2', contribuable.telephone2!),
               if (contribuable.email != null)
                 _buildDetailRow(Icons.email, 'Email', contribuable.email!),
-              _buildDetailRow(Icons.location_on, 'Adresse', contribuable.adresse),
               if (contribuable.hasLocation)
                 _buildDetailRow(
                   Icons.my_location,

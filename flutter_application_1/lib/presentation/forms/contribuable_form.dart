@@ -41,10 +41,17 @@ import '../../core/utils/camera_service.dart';
 import '../../core/utils/location_service.dart';
 import '../../data/datasources/local/ref_type_activite_local_datasource.dart';
 import '../../data/datasources/local/ref_zone_type_local_datasource.dart';
+import '../../data/datasources/local/ref_commune_local_datasource.dart';
+import '../../data/datasources/local/ref_quartier_local_datasource.dart';
+import '../../data/datasources/local/ref_avenue_local_datasource.dart';
 import '../../data/models/entities/contribuable_entity.dart';
 import '../../data/models/entities/ref_type_activite_entity.dart';
 import '../../data/models/entities/ref_zone_type_entity.dart';
+import '../../data/models/entities/ref_commune_entity.dart';
+import '../../data/models/entities/ref_quartier_entity.dart';
+import '../../data/models/entities/ref_avenue_entity.dart';
 import '../../data/models/enums/contribuable_enums.dart';
+import '../screens/qr_scanner_screen.dart';
 
 // =============================================================================
 // MAIN WIDGET CLASS
@@ -105,6 +112,9 @@ class _ContribuableFormState extends State<ContribuableForm> {
   // These load the dropdown options for activity types and zone types
   final _refTypeActiviteDatasource = RefTypeActiviteLocalDatasource();
   final _refZoneTypeDatasource = RefZoneTypeLocalDatasource();
+  final _refCommuneDatasource = RefCommuneLocalDatasource();
+  final _refQuartierDatasource = RefQuartierLocalDatasource();
+  final _refAvenueDatasource = RefAvenueLocalDatasource();
 
   // ---------------------------------------------------------------------------
   // TEXT EDITING CONTROLLERS
@@ -120,10 +130,12 @@ class _ContribuableFormState extends State<ContribuableForm> {
   late final TextEditingController _postNomController;
   late final TextEditingController _prenomController;
   late final TextEditingController _raisonSocialeController;
+  late final TextEditingController _numeroRccmController;
   late final TextEditingController _telephone1Controller;
   late final TextEditingController _telephone2Controller;
   late final TextEditingController _emailController;
-  late final TextEditingController _adresseController;
+  late final TextEditingController _rueController;
+  late final TextEditingController _numeroParcelleController;
 
   // ---------------------------------------------------------------------------
   // DROPDOWN STATE VARIABLES
@@ -132,17 +144,27 @@ class _ContribuableFormState extends State<ContribuableForm> {
   // Nullable types (?) allow for "no selection" state
   TypeNif? _typeNif;
   TypeContribuable _typeContribuable = TypeContribuable.physique;
+  FormeJuridique? _formeJuridique;  // Legal form for legal entities (morale)
   OrigineFiche _origineFiche = OrigineFiche.recensement;
   int? _activiteId;  // Foreign key to ref_type_activite table
   int? _zoneId;      // Foreign key to ref_zone_type table
+  int? _communeId;   // Foreign key to ref_commune table
+  int? _quartierId;  // Foreign key to ref_quartier table
+  int? _avenueId;    // Foreign key to ref_avenue table
 
   // ---------------------------------------------------------------------------
   // REFERENCE DATA - Loaded from database for dropdowns
   // ---------------------------------------------------------------------------
   List<RefTypeActiviteEntity> _typeActivites = [];
   List<RefZoneTypeEntity> _zoneTypes = [];
+  List<RefCommuneEntity> _communes = [];
+  List<RefQuartierEntity> _quartiers = [];
+  List<RefAvenueEntity> _avenues = [];
   bool _isLoadingActivites = true;  // Show loading indicator while fetching
   bool _isLoadingZones = true;
+  bool _isLoadingCommunes = true;
+  bool _isLoadingQuartiers = true;
+  bool _isLoadingAvenues = true;
 
   // ---------------------------------------------------------------------------
   // PHOTO & LOCATION DATA
@@ -166,6 +188,24 @@ class _ContribuableFormState extends State<ContribuableForm> {
   bool get _isEditing => widget.contribuable != null;
   bool get _isPersonneMorale => _typeContribuable == TypeContribuable.morale;
 
+  // ---------------------------------------------------------------------------
+  // HELPER METHODS
+  // ---------------------------------------------------------------------------
+  
+  /// Strip +243 prefix from phone number for display in text field
+  String _stripPhonePrefix(String? phone) {
+    if (phone == null || phone.isEmpty) return '';
+    return phone.startsWith('+243') ? phone.substring(4).trim() : phone;
+  }
+
+  /// Add +243 prefix to phone number when saving
+  String _addPhonePrefix(String phone) {
+    final trimmed = phone.trim();
+    if (trimmed.isEmpty) return '';
+    if (trimmed.startsWith('+243')) return trimmed;
+    return '+243$trimmed';
+  }
+
   // ===========================================================================
   // LIFECYCLE METHODS
   // ===========================================================================
@@ -184,17 +224,23 @@ class _ContribuableFormState extends State<ContribuableForm> {
     _postNomController = TextEditingController(text: c?.postNom ?? '');
     _prenomController = TextEditingController(text: c?.prenom ?? '');
     _raisonSocialeController = TextEditingController(text: c?.raisonSociale ?? '');
-    _telephone1Controller = TextEditingController(text: c?.telephone1 ?? '');
-    _telephone2Controller = TextEditingController(text: c?.telephone2 ?? '');
+    _numeroRccmController = TextEditingController(text: c?.numeroRCCM ?? '');
+    _telephone1Controller = TextEditingController(text: _stripPhonePrefix(c?.telephone1));
+    _telephone2Controller = TextEditingController(text: _stripPhonePrefix(c?.telephone2));
     _emailController = TextEditingController(text: c?.email ?? '');
-    _adresseController = TextEditingController(text: c?.adresse ?? '');
+    _rueController = TextEditingController(text: c?.rue ?? '');
+    _numeroParcelleController = TextEditingController(text: c?.numeroParcelle ?? '');
 
     // Initialize dropdown values
     _typeNif = c?.typeNif;
     _typeContribuable = c?.typeContribuable ?? TypeContribuable.physique;
+    _formeJuridique = c?.formeJuridique;
     _origineFiche = c?.origineFiche ?? OrigineFiche.recensement;
     _activiteId = c?.activiteId;
     _zoneId = c?.zoneId;
+    _communeId = c?.communeId;
+    _quartierId = c?.quartierId;
+    _avenueId = c?.avenueId;
     
     // Copy photo paths (List.from creates a new list to avoid reference issues)
     _photoPaths = List.from(c?.pieceIdentiteUrls ?? []);
@@ -213,6 +259,9 @@ class _ContribuableFormState extends State<ContribuableForm> {
     await Future.wait([
       _loadTypeActivites(),
       _loadZoneTypes(),
+      _loadCommunes(),
+      _loadQuartiers(),
+      _loadAvenues(),
     ]);
   }
 
@@ -250,6 +299,57 @@ class _ContribuableFormState extends State<ContribuableForm> {
     }
   }
 
+  /// Load communes from local database
+  Future<void> _loadCommunes() async {
+    try {
+      final communes = await _refCommuneDatasource.getAllCommunes();
+      if (mounted) {
+        setState(() {
+          _communes = communes;
+          _isLoadingCommunes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCommunes = false);
+      }
+    }
+  }
+
+  /// Load quartiers from local database
+  Future<void> _loadQuartiers() async {
+    try {
+      final quartiers = await _refQuartierDatasource.getAllQuartiers();
+      if (mounted) {
+        setState(() {
+          _quartiers = quartiers;
+          _isLoadingQuartiers = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingQuartiers = false);
+      }
+    }
+  }
+
+  /// Load avenues from local database
+  Future<void> _loadAvenues() async {
+    try {
+      final avenues = await _refAvenueDatasource.getAllAvenues();
+      if (mounted) {
+        setState(() {
+          _avenues = avenues;
+          _isLoadingAvenues = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingAvenues = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     // IMPORTANT: Always dispose TextEditingControllers to prevent memory leaks
@@ -259,10 +359,12 @@ class _ContribuableFormState extends State<ContribuableForm> {
     _postNomController.dispose();
     _prenomController.dispose();
     _raisonSocialeController.dispose();
+    _numeroRccmController.dispose();
     _telephone1Controller.dispose();
     _telephone2Controller.dispose();
     _emailController.dispose();
-    _adresseController.dispose();
+    _rueController.dispose();
+    _numeroParcelleController.dispose();
     super.dispose();
   }
 
@@ -460,12 +562,18 @@ class _ContribuableFormState extends State<ContribuableForm> {
         postNom: _isPersonneMorale ? null : _postNomController.text.trim(),
         prenom: _isPersonneMorale ? null : _prenomController.text.trim(),
         raisonSociale: _isPersonneMorale ? _raisonSocialeController.text.trim() : null,
+        formeJuridique: _isPersonneMorale ? _formeJuridique : null,
+        numeroRCCM: _isPersonneMorale && _numeroRccmController.text.trim().isNotEmpty ? _numeroRccmController.text.trim() : null,
         
         // Contact information
-        telephone1: _telephone1Controller.text.trim(),
-        telephone2: _telephone2Controller.text.trim().isEmpty ? null : _telephone2Controller.text.trim(),
+        telephone1: _addPhonePrefix(_telephone1Controller.text),
+        telephone2: _telephone2Controller.text.trim().isEmpty ? null : _addPhonePrefix(_telephone2Controller.text),
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        adresse: _adresseController.text.trim(),
+        communeId: _communeId,
+        quartierId: _quartierId,
+        avenueId: _avenueId,
+        rue: _rueController.text.trim().isEmpty ? null : _rueController.text.trim(),
+        numeroParcelle: _numeroParcelleController.text.trim().isEmpty ? null : _numeroParcelleController.text.trim(),
         
         // Classification
         origineFiche: _origineFiche,
@@ -553,7 +661,13 @@ class _ContribuableFormState extends State<ContribuableForm> {
                 onChanged: (value) {
                   if (value != null) {
                     // Changing type will show/hide different form fields
-                    setState(() => _typeContribuable = value);
+                    setState(() {
+                      _typeContribuable = value;
+                      // Reset forme juridique when switching away from morale
+                      if (value != TypeContribuable.morale) {
+                        _formeJuridique = null;
+                      }
+                    });
                   }
                 },
               ),
@@ -572,9 +686,26 @@ class _ContribuableFormState extends State<ContribuableForm> {
                     flex: 2,
                     child: TextFormField(
                       controller: _nifController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'NIF',
-                        prefixIcon: Icon(Icons.badge),
+                        prefixIcon: const Icon(Icons.badge),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.qr_code_scanner),
+                          tooltip: 'Scanner QR Code',
+                          onPressed: () async {
+                            final scannedValue = await Navigator.push<String>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const QrScannerScreen(),
+                              ),
+                            );
+                            if (scannedValue != null && mounted) {
+                              setState(() {
+                                _nifController.text = scannedValue;
+                              });
+                            }
+                          },
+                        ),
                       ),
                       // No validator - NIF is optional
                     ),
@@ -632,6 +763,49 @@ class _ContribuableFormState extends State<ContribuableForm> {
                   validator: (value) =>
                       Validators.required(value, fieldName: 'Raison sociale'),
                 ),
+                const SizedBox(height: 16),
+                
+                // FORME JURIDIQUE - Legal form dropdown
+                _buildSectionTitle('Forme Juridique'),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<FormeJuridique>(
+                  value: _formeJuridique,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Forme Juridique',
+                    prefixIcon: Icon(Icons.account_balance),
+                    hintText: 'Sélectionner une forme juridique',
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('-'),
+                    ),
+                    ...FormeJuridique.values.map((forme) {
+                      return DropdownMenuItem(
+                        value: forme,
+                        child: Text(forme.displayName),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _formeJuridique = value);
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // RCCM NUMBER
+                _buildSectionTitle('Numéro RCCM'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _numeroRccmController,
+                  decoration: const InputDecoration(
+                    labelText: 'Numéro RCCM',
+                    prefixIcon: Icon(Icons.numbers),
+                    hintText: 'Ex: CD/KIN/RCCM/XX-X-XXXXX',
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                ),
               ] else ...[
                 // PHYSICAL PERSON - Show name fields (nom, postnom, prenom)
                 _buildSectionTitle('Identité'),
@@ -678,6 +852,7 @@ class _ContribuableFormState extends State<ContribuableForm> {
                 decoration: const InputDecoration(
                   labelText: 'Téléphone 1 *',
                   prefixIcon: Icon(Icons.phone),
+                  prefixText: '+243 ',
                 ),
                 keyboardType: TextInputType.phone,  // Shows phone keyboard
                 validator: (value) =>
@@ -689,6 +864,7 @@ class _ContribuableFormState extends State<ContribuableForm> {
                 decoration: const InputDecoration(
                   labelText: 'Téléphone 2',
                   prefixIcon: Icon(Icons.phone_android),
+                  prefixText: '+243 ',
                 ),
                 keyboardType: TextInputType.phone,
               ),
@@ -709,19 +885,113 @@ class _ContribuableFormState extends State<ContribuableForm> {
               const SizedBox(height: 24),
 
               // ---------------------------------------------------------
-              // ADDRESS SECTION
+              // ADDRESS SECTION - 5 fields: Commune, Quartier, Avenue (dropdowns) + Rue, Numéro de parcelle (text)
               // ---------------------------------------------------------
               _buildSectionTitle('Adresse'),
               const SizedBox(height: 8),
+
+              // Commune dropdown
+              _isLoadingCommunes
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<int>(
+                      value: _communeId,
+                      decoration: const InputDecoration(
+                        labelText: 'Commune',
+                        prefixIcon: Icon(Icons.location_city),
+                        hintText: 'Sélectionner une commune',
+                      ),
+                      items: [
+                        const DropdownMenuItem<int>(
+                          value: null,
+                          child: Text('-- Aucune --'),
+                        ),
+                        ..._communes.map((commune) {
+                          return DropdownMenuItem<int>(
+                            value: commune.id,
+                            child: Text(commune.libelle),
+                          );
+                        }),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _communeId = value);
+                      },
+                    ),
+              const SizedBox(height: 12),
+
+              // Quartier dropdown
+              _isLoadingQuartiers
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<int>(
+                      value: _quartierId,
+                      decoration: const InputDecoration(
+                        labelText: 'Quartier',
+                        prefixIcon: Icon(Icons.holiday_village),
+                        hintText: 'Sélectionner un quartier',
+                      ),
+                      items: [
+                        const DropdownMenuItem<int>(
+                          value: null,
+                          child: Text('-- Aucun --'),
+                        ),
+                        ..._quartiers.map((quartier) {
+                          return DropdownMenuItem<int>(
+                            value: quartier.id,
+                            child: Text(quartier.libelle),
+                          );
+                        }),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _quartierId = value);
+                      },
+                    ),
+              const SizedBox(height: 12),
+
+              // Avenue dropdown
+              _isLoadingAvenues
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<int>(
+                      value: _avenueId,
+                      decoration: const InputDecoration(
+                        labelText: 'Avenue',
+                        prefixIcon: Icon(Icons.signpost),
+                        hintText: 'Sélectionner une avenue',
+                      ),
+                      items: [
+                        const DropdownMenuItem<int>(
+                          value: null,
+                          child: Text('-- Aucune --'),
+                        ),
+                        ..._avenues.map((avenue) {
+                          return DropdownMenuItem<int>(
+                            value: avenue.id,
+                            child: Text(avenue.libelle),
+                          );
+                        }),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _avenueId = value);
+                      },
+                    ),
+              const SizedBox(height: 12),
+
+              // Rue text field
               TextFormField(
-                controller: _adresseController,
+                controller: _rueController,
                 decoration: const InputDecoration(
-                  labelText: 'Adresse *',
-                  prefixIcon: Icon(Icons.location_on),
+                  labelText: 'Rue',
+                  prefixIcon: Icon(Icons.edit_road),
                 ),
-                maxLines: 2,  // Allow multi-line address
-                validator: (value) =>
-                    Validators.required(value, fieldName: 'Adresse'),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+
+              // Numéro de parcelle text field
+              TextFormField(
+                controller: _numeroParcelleController,
+                decoration: const InputDecoration(
+                  labelText: 'Numéro de parcelle',
+                  prefixIcon: Icon(Icons.home),
+                ),
               ),
               const SizedBox(height: 24),
 

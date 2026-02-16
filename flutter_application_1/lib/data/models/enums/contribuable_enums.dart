@@ -14,6 +14,36 @@ enum TypeNif {
     );
   }
 }
+enum FormeJuridique {
+  sarl('SARL'),
+  sa('SA'),
+  snc('SNC'),
+  gie('GIE');
+
+  final String value;
+  const FormeJuridique(this.value);
+
+  static FormeJuridique? fromString(String? value) {
+    if (value == null) return null;
+    return FormeJuridique.values.firstWhere(
+      (e) => e.value == value.toUpperCase(),
+      orElse: () => FormeJuridique.sarl,
+    );
+  }
+
+  String get displayName {
+    switch (this) {
+      case FormeJuridique.sarl:
+        return 'SARL - Société à Responsabilité Limitée';
+      case FormeJuridique.sa:
+        return 'SA - Société Anonyme';
+      case FormeJuridique.snc:
+        return 'SNC - Société en Nom Collectif';
+      case FormeJuridique.gie:
+        return 'GIE - Groupement d\'Intérêt Économique';
+    }
+  }
+}
 
 /// Type of taxpayer
 enum TypeContribuable {

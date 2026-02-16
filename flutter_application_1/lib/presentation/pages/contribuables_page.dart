@@ -57,8 +57,7 @@ class _ContribuablesPageState extends State<ContribuablesPage> {
         if (query.isEmpty) return true;
         return c.fullName.toLowerCase().contains(query) ||
             (c.nif?.toLowerCase().contains(query) ?? false) ||
-            c.telephone1.contains(query) ||
-            c.adresse.toLowerCase().contains(query);
+            c.telephone1.contains(query);
       }).toList();
     });
   }
@@ -206,7 +205,6 @@ class _ContribuablesPageState extends State<ContribuablesPage> {
         print('Téléphone 2: ${c.telephone2}');
       }
       print('Email: ${c.email ?? "N/A"}');
-      print('Adresse: ${c.adresse}');
       print('Origine: ${c.origineFiche.displayName}');
       if (c.hasLocation) {
         print('GPS: ${c.gpsLatitude}, ${c.gpsLongitude}');

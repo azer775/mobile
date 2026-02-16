@@ -14,7 +14,11 @@ class ContribuableEntity extends BaseEntity {
   String telephone1;
   String? telephone2;
   String? email;
-  String adresse;
+  int? communeId;       // Foreign key to ref_commune
+  int? quartierId;      // Foreign key to ref_quartier
+  int? avenueId;        // Foreign key to ref_avenue
+  String? rue;
+  String? numeroParcelle;
   OrigineFiche origineFiche;
   int? activiteId; // Foreign key to ref_type_activite
   int? zoneId; // Foreign key to ref_zone_type
@@ -25,6 +29,8 @@ class ContribuableEntity extends BaseEntity {
   DateTime? dateInscription;
   String creePar;
   DateTime? dateMaj;
+  FormeJuridique? formeJuridique;
+  String? numeroRCCM;
   String? majPar;
 
   ContribuableEntity({
@@ -39,7 +45,11 @@ class ContribuableEntity extends BaseEntity {
     required this.telephone1,
     this.telephone2,
     this.email,
-    required this.adresse,
+    this.communeId,
+    this.quartierId,
+    this.avenueId,
+    this.rue,
+    this.numeroParcelle,
     required this.origineFiche,
     this.activiteId,
     this.zoneId,
@@ -52,6 +62,8 @@ class ContribuableEntity extends BaseEntity {
     required this.creePar,
     this.dateMaj,
     this.majPar,
+    this.formeJuridique,
+    this.numeroRCCM,
     super.updatedAt,
   }) : pieceIdentiteUrls = pieceIdentiteUrls ?? [];
 
@@ -86,7 +98,12 @@ class ContribuableEntity extends BaseEntity {
       'telephone1': telephone1,
       'telephone2': telephone2,
       'email': email,
-      'adresse': adresse,
+      'commune_id': communeId,
+      'quartier_id': quartierId,
+      'avenue_id': avenueId,
+      'rue': rue,
+      'numero_parcelle': numeroParcelle,
+      'adresse': '',  // Legacy column (NOT NULL) - kept for backward compatibility
       'origine_fiche': origineFiche.value,
       'activite_id': activiteId,
       'zone_id': zoneId,
@@ -98,8 +115,10 @@ class ContribuableEntity extends BaseEntity {
       'created_at': createdAt?.toIso8601String(),
       'cree_par': creePar,
       'date_maj': dateMaj?.toIso8601String(),
+      'forme_juridique': formeJuridique?.value,
       'maj_par': majPar,
       'updated_at': updatedAt?.toIso8601String(),
+      'numero_rccm': numeroRCCM,
     };
   }
 
@@ -131,7 +150,11 @@ class ContribuableEntity extends BaseEntity {
       telephone1: map['telephone1'] as String,
       telephone2: map['telephone2'] as String?,
       email: map['email'] as String?,
-      adresse: map['adresse'] as String,
+      communeId: map['commune_id'] as int?,
+      quartierId: map['quartier_id'] as int?,
+      avenueId: map['avenue_id'] as int?,
+      rue: map['rue'] as String?,
+      numeroParcelle: map['numero_parcelle'] as String?,
       origineFiche: OrigineFiche.fromString(map['origine_fiche'] as String),
       activiteId: map['activite_id'] as int?,
       zoneId: map['zone_id'] as int?,
@@ -153,6 +176,8 @@ class ContribuableEntity extends BaseEntity {
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : null,
+      formeJuridique: FormeJuridique.fromString(map['forme_juridique'] as String?),
+      numeroRCCM: map['numero_rccm'] as String?,
     );
   }
 
@@ -169,7 +194,11 @@ class ContribuableEntity extends BaseEntity {
     String? telephone1,
     String? telephone2,
     String? email,
-    String? adresse,
+    int? communeId,
+    int? quartierId,
+    int? avenueId,
+    String? rue,
+    String? numeroParcelle,
     OrigineFiche? origineFiche,
     int? activiteId,
     int? zoneId,
@@ -182,6 +211,8 @@ class ContribuableEntity extends BaseEntity {
     String? creePar,
     DateTime? dateMaj,
     String? majPar,
+    FormeJuridique? formeJuridique,
+    String? numeroRCCM,
     DateTime? updatedAt,
   }) {
     return ContribuableEntity(
@@ -196,7 +227,11 @@ class ContribuableEntity extends BaseEntity {
       telephone1: telephone1 ?? this.telephone1,
       telephone2: telephone2 ?? this.telephone2,
       email: email ?? this.email,
-      adresse: adresse ?? this.adresse,
+      communeId: communeId ?? this.communeId,
+      quartierId: quartierId ?? this.quartierId,
+      avenueId: avenueId ?? this.avenueId,
+      rue: rue ?? this.rue,
+      numeroParcelle: numeroParcelle ?? this.numeroParcelle,
       origineFiche: origineFiche ?? this.origineFiche,
       activiteId: activiteId ?? this.activiteId,
       zoneId: zoneId ?? this.zoneId,
@@ -209,6 +244,8 @@ class ContribuableEntity extends BaseEntity {
       creePar: creePar ?? this.creePar,
       dateMaj: dateMaj ?? this.dateMaj,
       majPar: majPar ?? this.majPar,
+      formeJuridique: formeJuridique ?? this.formeJuridique,
+      numeroRCCM: numeroRCCM ?? this.numeroRCCM,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

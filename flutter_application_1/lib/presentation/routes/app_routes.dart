@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../pages/home_page.dart';
 import '../pages/login_page.dart';
 import '../pages/contribuables_page.dart';
+import '../pages/immobilier_page.dart';
 
 /// ============================================================================
 /// APPLICATION ROUTES CONFIGURATION
@@ -23,6 +24,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String home = '/';
   static const String contribuables = '/contribuables';
+  static const String immobilier = '/immobilier';
 
   /// Simple routes map - for screens without parameters
   /// Used by MaterialApp's `routes` property
@@ -31,6 +33,7 @@ class AppRoutes {
       login: (context) => const LoginPage(),
       home: (context) => const HomePage(),
       contribuables: (context) => const ContribuablesPage(),
+      immobilier: (context) => const ImmobilierPage(),
     };
   }
 
