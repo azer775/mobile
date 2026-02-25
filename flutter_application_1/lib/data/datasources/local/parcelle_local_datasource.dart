@@ -36,8 +36,8 @@ class ParcelleLocalDatasource {
     final searchTerm = '%$query%';
     final maps = await _dbHelper.query(
       'parcelles',
-      where: 'code_parcelle LIKE ? OR commune LIKE ? OR quartier LIKE ? OR rue_avenue LIKE ? OR reference_cadastrale LIKE ?',
-      whereArgs: [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm],
+      where: 'code_parcelle LIKE ? OR commune LIKE ? OR quartier LIKE ? OR rue_avenue LIKE ? OR reference_cadastrale LIKE ? OR rue LIKE ? OR numero_parcelle LIKE ?',
+      whereArgs: [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm],
     );
     return maps.map((map) => ParcelleEntity.fromMap(map)).toList();
   }

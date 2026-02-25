@@ -206,245 +206,74 @@ class DatabaseHelper {
         FOREIGN KEY (avenue_id) REFERENCES ref_avenue (id)
       )
     ''');
+
+    // Create parcelles table
+    await db.execute('''
+      CREATE TABLE parcelles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_parcelle TEXT,
+        reference_cadastrale TEXT,
+        commune TEXT,
+        quartier TEXT,
+        rue_avenue TEXT,
+        numero_adresse TEXT,
+        commune_id INTEGER,
+        quartier_id INTEGER,
+        avenue_id INTEGER,
+        rue TEXT,
+        numero_parcelle TEXT,
+        superficie_m2 REAL,
+        gps_lat REAL,
+        gps_lon REAL,
+        statut_parcelle TEXT NOT NULL,
+        date_creation TEXT,
+        date_mise_a_jour TEXT,
+        source_donnee TEXT,
+        created_at TEXT,
+        updated_at TEXT,
+        FOREIGN KEY (commune_id) REFERENCES ref_commune (id),
+        FOREIGN KEY (quartier_id) REFERENCES ref_quartier (id),
+        FOREIGN KEY (avenue_id) REFERENCES ref_avenue (id)
+      )
+    ''');
+
+    // Create personnes table (1:1 with parcelle)
+    await db.execute('''
+      CREATE TABLE personnes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type_personne TEXT NOT NULL,
+        nom_raison_sociale TEXT,
+        nif TEXT,
+        contact TEXT,
+        adresse_postale TEXT,
+        parcelle_id INTEGER UNIQUE,
+        created_at TEXT,
+        updated_at TEXT,
+        FOREIGN KEY (parcelle_id) REFERENCES parcelles (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // Create batiments table (1:N with parcelle)
+    await db.execute('''
+      CREATE TABLE batiments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parcelle_id INTEGER,
+        type_batiment TEXT NOT NULL,
+        nombre_etages INTEGER,
+        annee_construction INTEGER,
+        surface_batie_m2 REAL,
+        usage_principal TEXT NOT NULL,
+        statut_batiment TEXT NOT NULL,
+        created_at TEXT,
+        updated_at TEXT,
+        FOREIGN KEY (parcelle_id) REFERENCES parcelles (id) ON DELETE CASCADE
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Handle database migrations here
-    if (oldVersion < 4) {
-      // Create contribuables table
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS contribuables (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          nif TEXT,
-          type_nif TEXT,
-          type_contribuable TEXT NOT NULL,
-          nom TEXT,
-          post_nom TEXT,
-          prenom TEXT,
-          raison_sociale TEXT,
-          telephone1 TEXT NOT NULL,
-          telephone2 TEXT,
-          email TEXT,
-          adresse TEXT NOT NULL,
-          origine_fiche TEXT NOT NULL,
-          statut INTEGER,
-          gps_latitude REAL,
-          gps_longitude REAL,
-          piece_identite_url TEXT,
-          date_inscription TEXT,
-          created_at TEXT,
-          cree_par TEXT NOT NULL,
-          date_maj TEXT,
-          maj_par TEXT,
-          updated_at TEXT
-        )
-      ''');
-    }
-    if (oldVersion < 5) {
-      // Create ref_type_activite reference table
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS ref_type_activite (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          libelle TEXT NOT NULL
-        )
-      ''');
-
-      // Populate ref_type_activite with initial data
-      await db.execute('''
-        INSERT INTO ref_type_activite (libelle) VALUES
-        ('Commerce général'),
-        ('Agriculture'),
-        ('Artisanat'),
-        ('Services'),
-        ('Transport'),
-        ('Restauration'),
-        ('Hôtellerie'),
-        ('Construction'),
-        ('Industrie'),
-        ('Santé'),
-        ('Éducation'),
-        ('Télécommunications'),
-        ('Banque et Finance'),
-        ('Immobilier'),
-        ('Autre')
-      ''');
-
-      // Add activite_id column to contribuables
-      await db.execute('ALTER TABLE contribuables ADD COLUMN activite_id INTEGER');
-    }
-    if (oldVersion < 6) {
-      // Create ref_zone_type reference table
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS ref_zone_type (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          libelle TEXT NOT NULL
-        )
-      ''');
-
-      // Populate ref_zone_type with initial data
-      await db.execute('''
-        INSERT INTO ref_zone_type (libelle) VALUES
-        ('Zone urbaine'),
-        ('Zone périurbaine'),
-        ('Zone rurale'),
-        ('Zone industrielle'),
-        ('Zone commerciale'),
-        ('Zone résidentielle'),
-        ('Zone mixte')
-      ''');
-
-      // Add zone_id column to contribuables
-      await db.execute('ALTER TABLE contribuables ADD COLUMN zone_id INTEGER');
-    }
-    if (oldVersion < 7) {
-      // Create parcelles table
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS parcelles (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          code_parcelle TEXT,
-          reference_cadastrale TEXT,
-          commune TEXT,
-          quartier TEXT,
-          rue_avenue TEXT,
-          numero_adresse TEXT,
-          superficie_m2 REAL,
-          gps_lat REAL,
-          gps_lon REAL,
-          statut_parcelle TEXT NOT NULL,
-          date_creation TEXT,
-          date_mise_a_jour TEXT,
-          source_donnee TEXT,
-          created_at TEXT,
-          updated_at TEXT
-        )
-      ''');
-
-      // Create personnes table (1:1 with parcelle)
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS personnes (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          type_personne TEXT NOT NULL,
-          nom_raison_sociale TEXT,
-          nif TEXT,
-          contact TEXT,
-          adresse_postale TEXT,
-          parcelle_id INTEGER UNIQUE,
-          created_at TEXT,
-          updated_at TEXT,
-          FOREIGN KEY (parcelle_id) REFERENCES parcelles (id) ON DELETE CASCADE
-        )
-      ''');
-
-      // Create batiments table (1:N with parcelle)
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS batiments (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          parcelle_id INTEGER,
-          type_batiment TEXT NOT NULL,
-          nombre_etages INTEGER,
-          annee_construction INTEGER,
-          surface_batie_m2 REAL,
-          usage_principal TEXT NOT NULL,
-          statut_batiment TEXT NOT NULL,
-          created_at TEXT,
-          updated_at TEXT,
-          FOREIGN KEY (parcelle_id) REFERENCES parcelles (id) ON DELETE CASCADE
-        )
-      ''');
-    }
-    if (oldVersion < 8) {
-      // Add forme_juridique column to contribuables table
-      await db.execute('ALTER TABLE contribuables ADD COLUMN forme_juridique TEXT');
-    }
-    if (oldVersion < 9) {
-      // Add numero_rccm column to contribuables table
-      await db.execute('ALTER TABLE contribuables ADD COLUMN numero_rccm TEXT');
-    }
-    if (oldVersion < 10) {
-      // Create ref_commune reference table
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS ref_commune (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          libelle TEXT NOT NULL
-        )
-      ''');
-      await db.execute('''
-        INSERT INTO ref_commune (libelle) VALUES
-        ('Bandalungwa'),
-        ('Barumbu'),
-        ('Bumbu'),
-        ('Gombe'),
-        ('Kalamu'),
-        ('Kasa-Vubu'),
-        ('Kimbanseke'),
-        ('Kinshasa'),
-        ('Kintambo'),
-        ('Kisenso'),
-        ('Lemba'),
-        ('Limete'),
-        ('Lingwala'),
-        ('Makala'),
-        ('Maluku'),
-        ('Masina'),
-        ('Matete'),
-        ('Mont-Ngafula'),
-        ('Ndjili'),
-        ('Ngaba'),
-        ('Ngaliema'),
-        ('Ngiri-Ngiri'),
-        ('Nsele'),
-        ('Selembao')
-      ''');
-
-      // Create ref_quartier reference table
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS ref_quartier (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          libelle TEXT NOT NULL
-        )
-      ''');
-      await db.execute('''
-        INSERT INTO ref_quartier (libelle) VALUES
-        ('Centre-ville'),
-        ('Matonge'),
-        ('Yolo'),
-        ('Righini'),
-        ('Livulu'),
-        ('Mbanza-Lemba'),
-        ('Funa'),
-        ('Industriel'),
-        ('Résidentiel'),
-        ('Commercial')
-      ''');
-
-      // Create ref_avenue reference table
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS ref_avenue (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          libelle TEXT NOT NULL
-        )
-      ''');
-      await db.execute('''
-        INSERT INTO ref_avenue (libelle) VALUES
-        ('Avenue de la Libération'),
-        ('Avenue Lumumba'),
-        ('Avenue Kasavubu'),
-        ('Avenue du Commerce'),
-        ('Avenue de la Paix'),
-        ('Avenue des Huileries'),
-        ('Avenue Colonel Mondjiba'),
-        ('Avenue de l''Université'),
-        ('Avenue Sendwe'),
-        ('Avenue Kasa-Vubu')
-      ''');
-
-      // Add new address columns to contribuables
-      await db.execute('ALTER TABLE contribuables ADD COLUMN commune_id INTEGER');
-      await db.execute('ALTER TABLE contribuables ADD COLUMN quartier_id INTEGER');
-      await db.execute('ALTER TABLE contribuables ADD COLUMN avenue_id INTEGER');
-      await db.execute('ALTER TABLE contribuables ADD COLUMN rue TEXT');
-      await db.execute('ALTER TABLE contribuables ADD COLUMN numero_parcelle TEXT');
-    }
+    // All schema is now defined in _onCreate at version 1.
+    // Future migrations can be added here as needed.
   }
 
   /// Generic insert method

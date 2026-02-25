@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/utils/validators.dart';
 import '../../data/models/entities/personne_entity.dart';
 import '../../data/models/enums/parcelle_enums.dart';
+import '../screens/qr_scanner_screen.dart';
 
 /// Personne form for creating and editing personnes
 /// 
@@ -175,9 +176,26 @@ class PersonneFormState extends State<PersonneForm> {
             const SizedBox(height: 8),
             TextFormField(
               controller: _nifController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'NIF',
-                prefixIcon: Icon(Icons.badge),
+                prefixIcon: const Icon(Icons.badge),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.qr_code_scanner),
+                  tooltip: 'Scanner QR Code',
+                  onPressed: () async {
+                    final scannedValue = await Navigator.push<String>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const QrScannerScreen(),
+                      ),
+                    );
+                    if (scannedValue != null && mounted) {
+                      setState(() {
+                        _nifController.text = scannedValue;
+                      });
+                    }
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 24),

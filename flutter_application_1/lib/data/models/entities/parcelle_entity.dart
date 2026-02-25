@@ -4,10 +4,17 @@ import '../enums/parcelle_enums.dart';
 class ParcelleEntity extends BaseEntity {          
   String? codeParcelle;
   String? referenceCadastrale;
+  // Legacy string address fields (kept for backward compatibility)
   String? commune;
   String? quartier;
   String? rueAvenue;
   String? numeroAdresse;
+  // New FK-based address fields (matching contribuable pattern)
+  int? communeId;
+  int? quartierId;
+  int? avenueId;
+  String? rue;
+  String? numeroParcelle;
   double? superficieM2;
   double? gpsLat;
   double? gpsLon;
@@ -24,6 +31,11 @@ class ParcelleEntity extends BaseEntity {
     this.quartier,
     this.rueAvenue,
     this.numeroAdresse,
+    this.communeId,
+    this.quartierId,
+    this.avenueId,
+    this.rue,
+    this.numeroParcelle,
     this.superficieM2,
     this.gpsLat,
     this.gpsLon,
@@ -55,6 +67,11 @@ class ParcelleEntity extends BaseEntity {
       'quartier': quartier,
       'rue_avenue': rueAvenue,
       'numero_adresse': numeroAdresse,
+      'commune_id': communeId,
+      'quartier_id': quartierId,
+      'avenue_id': avenueId,
+      'rue': rue,
+      'numero_parcelle': numeroParcelle,
       'superficie_m2': superficieM2,
       'gps_lat': gpsLat,
       'gps_lon': gpsLon,
@@ -76,6 +93,11 @@ class ParcelleEntity extends BaseEntity {
       quartier: map['quartier'] as String?,
       rueAvenue: map['rue_avenue'] as String?,
       numeroAdresse: map['numero_adresse'] as String?,
+      communeId: map['commune_id'] as int?,
+      quartierId: map['quartier_id'] as int?,
+      avenueId: map['avenue_id'] as int?,
+      rue: map['rue'] as String?,
+      numeroParcelle: map['numero_parcelle'] as String?,
       superficieM2: map['superficie_m2'] != null ? (map['superficie_m2'] as num).toDouble() : null,
       gpsLat: map['gps_lat'] != null ? (map['gps_lat'] as num).toDouble() : null,
       gpsLon: map['gps_lon'] != null ? (map['gps_lon'] as num).toDouble() : null,
@@ -104,6 +126,11 @@ class ParcelleEntity extends BaseEntity {
     String? quartier,
     String? rueAvenue,
     String? numeroAdresse,
+    int? communeId,
+    int? quartierId,
+    int? avenueId,
+    String? rue,
+    String? numeroParcelle,
     double? superficieM2,
     double? gpsLat,
     double? gpsLon,
@@ -122,6 +149,11 @@ class ParcelleEntity extends BaseEntity {
       quartier: quartier ?? this.quartier,
       rueAvenue: rueAvenue ?? this.rueAvenue,
       numeroAdresse: numeroAdresse ?? this.numeroAdresse,
+      communeId: communeId ?? this.communeId,
+      quartierId: quartierId ?? this.quartierId,
+      avenueId: avenueId ?? this.avenueId,
+      rue: rue ?? this.rue,
+      numeroParcelle: numeroParcelle ?? this.numeroParcelle,
       superficieM2: superficieM2 ?? this.superficieM2,
       gpsLat: gpsLat ?? this.gpsLat,
       gpsLon: gpsLon ?? this.gpsLon,

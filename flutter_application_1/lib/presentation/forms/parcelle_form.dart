@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../core/utils/validators.dart';
 import '../../core/utils/location_service.dart';
+import '../../data/datasources/local/ref_commune_local_datasource.dart';
+import '../../data/datasources/local/ref_quartier_local_datasource.dart';
+import '../../data/datasources/local/ref_avenue_local_datasource.dart';
 import '../../data/models/entities/parcelle_entity.dart';
+import '../../data/models/entities/ref_commune_entity.dart';
+import '../../data/models/entities/ref_quartier_entity.dart';
+import '../../data/models/entities/ref_avenue_entity.dart';
 import '../../data/models/enums/parcelle_enums.dart';
 
 /// Parcelle form for creating and editing parcelles
@@ -30,17 +36,33 @@ class ParcelleFormState extends State<ParcelleForm> {
   final _formKey = GlobalKey<FormState>();
   final _locationService = LocationService();
 
+  // Data source instances for reference dropdowns
+  final _refCommuneDatasource = RefCommuneLocalDatasource();
+  final _refQuartierDatasource = RefQuartierLocalDatasource();
+  final _refAvenueDatasource = RefAvenueLocalDatasource();
+
   // Text controllers
   late final TextEditingController _codeParcelleController;
   late final TextEditingController _referenceCadastraleController;
-  late final TextEditingController _communeController;
-  late final TextEditingController _quartierController;
-  late final TextEditingController _rueAvenueController;
-  late final TextEditingController _numeroAdresseController;
+  late final TextEditingController _rueController;
+  late final TextEditingController _numeroParcelleController;
   late final TextEditingController _superficieController;
 
   // Dropdown values
   StatutParcelle _statutParcelle = StatutParcelle.active;
+
+  // Address dropdown selections (FK IDs, matching contribuable pattern)
+  int? _communeId;
+  int? _quartierId;
+  int? _avenueId;
+
+  // Reference data lists
+  List<RefCommuneEntity> _communes = [];
+  List<RefQuartierEntity> _quartiers = [];
+  List<RefAvenueEntity> _avenues = [];
+  bool _isLoadingCommunes = true;
+  bool _isLoadingQuartiers = true;
+  bool _isLoadingAvenues = true;
 
   // GPS coordinates
   double? _latitude;
@@ -59,27 +81,85 @@ class ParcelleFormState extends State<ParcelleForm> {
 
     _codeParcelleController = TextEditingController(text: p?.codeParcelle ?? '');
     _referenceCadastraleController = TextEditingController(text: p?.referenceCadastrale ?? '');
-    _communeController = TextEditingController(text: p?.commune ?? '');
-    _quartierController = TextEditingController(text: p?.quartier ?? '');
-    _rueAvenueController = TextEditingController(text: p?.rueAvenue ?? '');
-    _numeroAdresseController = TextEditingController(text: p?.numeroAdresse ?? '');
+    _rueController = TextEditingController(text: p?.rue ?? '');
+    _numeroParcelleController = TextEditingController(text: p?.numeroParcelle ?? '');
     _superficieController = TextEditingController(
       text: p?.superficieM2?.toString() ?? '',
     );
 
     _statutParcelle = p?.statutParcelle ?? StatutParcelle.active;
+    _communeId = p?.communeId;
+    _quartierId = p?.quartierId;
+    _avenueId = p?.avenueId;
     _latitude = p?.gpsLat;
     _longitude = p?.gpsLon;
+
+    _loadReferenceData();
+  }
+
+  /// Load all reference data in parallel
+  Future<void> _loadReferenceData() async {
+    await Future.wait([
+      _loadCommunes(),
+      _loadQuartiers(),
+      _loadAvenues(),
+    ]);
+  }
+
+  Future<void> _loadCommunes() async {
+    try {
+      final communes = await _refCommuneDatasource.getAllCommunes();
+      if (mounted) {
+        setState(() {
+          _communes = communes;
+          _isLoadingCommunes = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingCommunes = false);
+      }
+    }
+  }
+
+  Future<void> _loadQuartiers() async {
+    try {
+      final quartiers = await _refQuartierDatasource.getAllQuartiers();
+      if (mounted) {
+        setState(() {
+          _quartiers = quartiers;
+          _isLoadingQuartiers = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingQuartiers = false);
+      }
+    }
+  }
+
+  Future<void> _loadAvenues() async {
+    try {
+      final avenues = await _refAvenueDatasource.getAllAvenues();
+      if (mounted) {
+        setState(() {
+          _avenues = avenues;
+          _isLoadingAvenues = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingAvenues = false);
+      }
+    }
   }
 
   @override
   void dispose() {
     _codeParcelleController.dispose();
     _referenceCadastraleController.dispose();
-    _communeController.dispose();
-    _quartierController.dispose();
-    _rueAvenueController.dispose();
-    _numeroAdresseController.dispose();
+    _rueController.dispose();
+    _numeroParcelleController.dispose();
     _superficieController.dispose();
     super.dispose();
   }
@@ -97,14 +177,13 @@ class ParcelleFormState extends State<ParcelleForm> {
           ? null : _codeParcelleController.text.trim(),
       referenceCadastrale: _referenceCadastraleController.text.trim().isEmpty 
           ? null : _referenceCadastraleController.text.trim(),
-      commune: _communeController.text.trim().isEmpty 
-          ? null : _communeController.text.trim(),
-      quartier: _quartierController.text.trim().isEmpty 
-          ? null : _quartierController.text.trim(),
-      rueAvenue: _rueAvenueController.text.trim().isEmpty 
-          ? null : _rueAvenueController.text.trim(),
-      numeroAdresse: _numeroAdresseController.text.trim().isEmpty 
-          ? null : _numeroAdresseController.text.trim(),
+      communeId: _communeId,
+      quartierId: _quartierId,
+      avenueId: _avenueId,
+      rue: _rueController.text.trim().isEmpty
+          ? null : _rueController.text.trim(),
+      numeroParcelle: _numeroParcelleController.text.trim().isEmpty
+          ? null : _numeroParcelleController.text.trim(),
       superficieM2: _superficieController.text.trim().isEmpty 
           ? null : double.tryParse(_superficieController.text.trim()),
       gpsLat: _latitude,
@@ -229,52 +308,114 @@ class ParcelleFormState extends State<ParcelleForm> {
             ),
             const SizedBox(height: 24),
 
-            // LOCALISATION SECTION
-            _buildSectionTitle('Localisation'),
+            // ---------------------------------------------------------
+            // ADDRESS SECTION - 5 fields: Commune, Quartier, Avenue (dropdowns) + Rue, Numéro de parcelle (text)
+            // ---------------------------------------------------------
+            _buildSectionTitle('Adresse'),
             const SizedBox(height: 8),
-            TextFormField(
-              controller: _communeController,
-              decoration: const InputDecoration(
-                labelText: 'Commune *',
-                prefixIcon: Icon(Icons.location_city),
-              ),
-              validator: (value) =>
-                  Validators.required(value, fieldName: 'Commune'),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _quartierController,
-              decoration: const InputDecoration(
-                labelText: 'Quartier *',
-                prefixIcon: Icon(Icons.holiday_village),
-              ),
-              validator: (value) =>
-                  Validators.required(value, fieldName: 'Quartier'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _rueAvenueController,
+
+            // Commune dropdown
+            _isLoadingCommunes
+                ? const Center(child: CircularProgressIndicator())
+                : DropdownButtonFormField<int>(
+                    value: _communeId,
                     decoration: const InputDecoration(
-                      labelText: 'Rue/Avenue',
+                      labelText: 'Commune',
+                      prefixIcon: Icon(Icons.location_city),
+                      hintText: 'Sélectionner une commune',
+                    ),
+                    items: [
+                      const DropdownMenuItem<int>(
+                        value: null,
+                        child: Text('-- Aucune --'),
+                      ),
+                      ..._communes.map((commune) {
+                        return DropdownMenuItem<int>(
+                          value: commune.id,
+                          child: Text(commune.libelle),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _communeId = value);
+                    },
+                  ),
+            const SizedBox(height: 12),
+
+            // Quartier dropdown
+            _isLoadingQuartiers
+                ? const Center(child: CircularProgressIndicator())
+                : DropdownButtonFormField<int>(
+                    value: _quartierId,
+                    decoration: const InputDecoration(
+                      labelText: 'Quartier',
+                      prefixIcon: Icon(Icons.holiday_village),
+                      hintText: 'Sélectionner un quartier',
+                    ),
+                    items: [
+                      const DropdownMenuItem<int>(
+                        value: null,
+                        child: Text('-- Aucun --'),
+                      ),
+                      ..._quartiers.map((quartier) {
+                        return DropdownMenuItem<int>(
+                          value: quartier.id,
+                          child: Text(quartier.libelle),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _quartierId = value);
+                    },
+                  ),
+            const SizedBox(height: 12),
+
+            // Avenue dropdown
+            _isLoadingAvenues
+                ? const Center(child: CircularProgressIndicator())
+                : DropdownButtonFormField<int>(
+                    value: _avenueId,
+                    decoration: const InputDecoration(
+                      labelText: 'Avenue',
                       prefixIcon: Icon(Icons.signpost),
+                      hintText: 'Sélectionner une avenue',
                     ),
+                    items: [
+                      const DropdownMenuItem<int>(
+                        value: null,
+                        child: Text('-- Aucune --'),
+                      ),
+                      ..._avenues.map((avenue) {
+                        return DropdownMenuItem<int>(
+                          value: avenue.id,
+                          child: Text(avenue.libelle),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _avenueId = value);
+                    },
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _numeroAdresseController,
-                    decoration: const InputDecoration(
-                      labelText: 'N°',
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+
+            // Rue text field
+            TextFormField(
+              controller: _rueController,
+              decoration: const InputDecoration(
+                labelText: 'Rue',
+                prefixIcon: Icon(Icons.edit_road),
+              ),
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 12),
+
+            // Numéro de parcelle text field
+            TextFormField(
+              controller: _numeroParcelleController,
+              decoration: const InputDecoration(
+                labelText: 'Numéro de parcelle',
+                prefixIcon: Icon(Icons.home),
+              ),
             ),
             const SizedBox(height: 24),
 

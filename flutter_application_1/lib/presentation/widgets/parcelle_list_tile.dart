@@ -44,7 +44,7 @@ class ParcelleListTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${parcelle.quartier ?? ""}${parcelle.quartier != null && parcelle.commune != null ? ", " : ""}${parcelle.commune ?? ""}',
+              parcelle.mainAddress ?? 'Adresse non définie',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

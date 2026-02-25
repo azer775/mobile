@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../data/datasources/local/ref_commune_local_datasource.dart';
+import '../../data/datasources/local/ref_quartier_local_datasource.dart';
+import '../../data/datasources/local/ref_avenue_local_datasource.dart';
 import '../../data/models/entities/parcelle_entity.dart';
 import '../../data/models/entities/personne_entity.dart';
 import '../../data/models/entities/batiment_entity.dart';
 import '../../data/models/enums/parcelle_enums.dart';
 
 /// Bottom sheet widget for displaying parcelle details
-class ParcelleDetailsSheet extends StatelessWidget {
+class ParcelleDetailsSheet extends StatefulWidget {
   final ParcelleEntity parcelle;
   final PersonneEntity? personne;
   final List<BatimentEntity> batiments;
@@ -20,6 +23,46 @@ class ParcelleDetailsSheet extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
   });
+
+  @override
+  State<ParcelleDetailsSheet> createState() => _ParcelleDetailsSheetState();
+}
+
+class _ParcelleDetailsSheetState extends State<ParcelleDetailsSheet> {
+  String? _communeLabel;
+  String? _quartierLabel;
+  String? _avenueLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRefLabels();
+  }
+
+  Future<void> _loadRefLabels() async {
+    final parcelle = widget.parcelle;
+    if (parcelle.communeId != null) {
+      final communes = await RefCommuneLocalDatasource().getAllCommunes();
+      final match = communes.where((c) => c.id == parcelle.communeId).firstOrNull;
+      if (mounted && match != null) setState(() => _communeLabel = match.libelle);
+    }
+    if (parcelle.quartierId != null) {
+      final quartiers = await RefQuartierLocalDatasource().getAllQuartiers();
+      final match = quartiers.where((q) => q.id == parcelle.quartierId).firstOrNull;
+      if (mounted && match != null) setState(() => _quartierLabel = match.libelle);
+    }
+    if (parcelle.avenueId != null) {
+      final avenues = await RefAvenueLocalDatasource().getAllAvenues();
+      final match = avenues.where((a) => a.id == parcelle.avenueId).firstOrNull;
+      if (mounted && match != null) setState(() => _avenueLabel = match.libelle);
+    }
+  }
+
+  ParcelleEntity get parcelle => widget.parcelle;
+  PersonneEntity? get personne => widget.personne;
+  List<BatimentEntity> get batiments => widget.batiments;
+  VoidCallback get onEdit => widget.onEdit;
+  VoidCallback get onDelete => widget.onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -89,13 +132,17 @@ class ParcelleDetailsSheet extends StatelessWidget {
               const SizedBox(height: 8),
               if (parcelle.referenceCadastrale != null)
                 _buildDetailRow(Icons.article, 'Réf. Cadastrale', parcelle.referenceCadastrale!),
-              _buildDetailRow(Icons.location_city, 'Commune', parcelle.commune ?? 'Non définie'),
-              _buildDetailRow(Icons.holiday_village, 'Quartier', parcelle.quartier ?? 'Non défini'),
-              if (parcelle.rueAvenue != null || parcelle.numeroAdresse != null)
+              _buildDetailRow(Icons.location_city, 'Commune', _communeLabel ?? parcelle.commune ?? 'Non définie'),
+              _buildDetailRow(Icons.holiday_village, 'Quartier', _quartierLabel ?? parcelle.quartier ?? 'Non défini'),
+              if (_avenueLabel != null || parcelle.rueAvenue != null)
+                _buildDetailRow(Icons.signpost, 'Avenue', _avenueLabel ?? parcelle.rueAvenue ?? ''),
+              if (parcelle.rue != null)
+                _buildDetailRow(Icons.edit_road, 'Rue', parcelle.rue!),
+              if (parcelle.numeroParcelle != null || parcelle.numeroAdresse != null)
                 _buildDetailRow(
-                  Icons.signpost,
-                  'Adresse',
-                  '${parcelle.numeroAdresse ?? ""} ${parcelle.rueAvenue ?? ""}'.trim(),
+                  Icons.home,
+                  'N° Parcelle',
+                  parcelle.numeroParcelle ?? parcelle.numeroAdresse ?? '',
                 ),
               if (parcelle.superficieM2 != null)
                 _buildDetailRow(Icons.square_foot, 'Superficie', '${parcelle.superficieM2} m²'),

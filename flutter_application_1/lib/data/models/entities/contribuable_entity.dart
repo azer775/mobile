@@ -103,7 +103,6 @@ class ContribuableEntity extends BaseEntity {
       'avenue_id': avenueId,
       'rue': rue,
       'numero_parcelle': numeroParcelle,
-      'adresse': '',  // Legacy column (NOT NULL) - kept for backward compatibility
       'origine_fiche': origineFiche.value,
       'activite_id': activiteId,
       'zone_id': zoneId,
