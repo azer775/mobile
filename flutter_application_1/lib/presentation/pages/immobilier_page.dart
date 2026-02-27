@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/services/parcelle_export_service.dart';
 import '../../core/utils/success_popup.dart';
 import '../../data/datasources/local/parcelle_local_datasource.dart';
 import '../../data/datasources/local/personne_local_datasource.dart';
@@ -142,6 +143,63 @@ class _ImmobilierPageState extends State<ImmobilierPage> {
     }
   }
 
+  Future<void> _exportParcelles() async {
+    if (!mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            SizedBox(width: 16),
+            Expanded(child: Text('Export en cours...')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final result = await ParcelleExportService.instance.exportAll(
+        chunkSize: 20,
+      );
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      await _loadParcelles();
+
+      if (!mounted) return;
+      final isSuccess = result.failedCount == 0;
+      final message = isSuccess
+          ? '${result.syncedCount} parcelle(s) exportée(s) avec succès'
+          : 'Export partiel: ${result.syncedCount} succès, ${result.failedCount} échec(s)';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: isSuccess ? Colors.green : Colors.orange,
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur export: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _navigateToAdd() {
     Navigator.push(
       context,
@@ -204,6 +262,11 @@ class _ImmobilierPageState extends State<ImmobilierPage> {
       appBar: AppBar(
         title: const Text('Immobilier'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Exporter',
+            onPressed: _exportParcelles,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadParcelles,

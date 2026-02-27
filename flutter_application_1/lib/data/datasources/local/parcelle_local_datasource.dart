@@ -95,4 +95,59 @@ class ParcelleLocalDatasource {
       'batiments': batiments,
     };
   }
+
+  Future<List<ParcelleEntity>> getUnsyncedParcelles({int limit = 20}) async {
+    final maps = await _dbHelper.query(
+      'parcelles',
+      where: 'sync_status != 1',
+      orderBy: 'created_at ASC, id ASC',
+      limit: limit,
+    );
+    return maps.map((map) => ParcelleEntity.fromMap(map)).toList();
+  }
+
+  Future<void> markAsFailed(List<int> ids, String error) async {
+    if (ids.isEmpty) return;
+    final db = await _dbHelper.database;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    await db.rawUpdate(
+      'UPDATE parcelles '
+      'SET sync_status = 2, sync_error = ?, sync_attempts = sync_attempts + 1, last_sync_at = ? '
+      'WHERE id IN ($placeholders)',
+      [error, now, ...ids],
+    );
+  }
+
+  Future<void> deleteExportedParcelles(List<ParcelleEntity> parcelles) async {
+    if (parcelles.isEmpty) return;
+
+    final ids = parcelles.map((item) => item.id).whereType<int>().toList();
+    if (ids.isEmpty) return;
+
+    final db = await _dbHelper.database;
+    final placeholders = List.filled(ids.length, '?').join(',');
+
+    await db.rawDelete(
+      'DELETE FROM batiments WHERE parcelle_id IN ($placeholders)',
+      ids,
+    );
+    await db.rawDelete(
+      'DELETE FROM personnes WHERE parcelle_id IN ($placeholders)',
+      ids,
+    );
+    await db.rawDelete(
+      'DELETE FROM parcelles WHERE id IN ($placeholders)',
+      ids,
+    );
+  }
+
+  Future<int> countUnsynced() async {
+    final db = await _dbHelper.database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM parcelles WHERE sync_status != 1',
+    );
+    return result.first['count'] as int;
+  }
 }

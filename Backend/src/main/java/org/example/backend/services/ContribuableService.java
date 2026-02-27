@@ -43,11 +43,11 @@ public class ContribuableService {
     }
 
     @Transactional
-    public void saveContribuables(List<ContribuableDto> dtos, String creePar, Map<Integer, List<MultipartFile>> filesMap) {
+    public void saveContribuables(List<ContribuableDto> dtos, Map<Integer, List<MultipartFile>> filesMap) {
         List<Contribuable> contribuables = new ArrayList<>();
 
         for (int i = 0; i < dtos.size(); i++) {
-            Contribuable contribuable = mapToEntity(dtos.get(i), creePar);
+            Contribuable contribuable = mapToEntity(dtos.get(i));
 
             // Sauvegarder les fichiers et créer les entités Document
             List<MultipartFile> files = filesMap != null ? filesMap.get(i) : null;
@@ -72,7 +72,7 @@ public class ContribuableService {
 
     @Transactional
     public void saveContribuable(ContribuableDto dto, String creePar, List<MultipartFile> files) {
-        Contribuable contribuable = mapToEntity(dto, creePar);
+        Contribuable contribuable = mapToEntity(dto);
 
         if (files != null && !files.isEmpty()) {
             List<Document> documents = new ArrayList<>();
@@ -90,7 +90,7 @@ public class ContribuableService {
         contribuableRepository.save(contribuable);
     }
 
-    private Contribuable mapToEntity(ContribuableDto dto, String creePar) {
+    private Contribuable mapToEntity(ContribuableDto dto) {
         Contribuable contribuable = new Contribuable();
 
         contribuable.setNif(dto.getNif());
@@ -115,7 +115,7 @@ public class ContribuableService {
         contribuable.setFormeJuridique(dto.getFormeJuridique());
         contribuable.setNumeroRccm(dto.getNumeroRccm());
         contribuable.setCreatedAt(Instant.now());
-        contribuable.setCreePar(creePar);
+        contribuable.setCreePar("system");
 
         // Résolution des références par ID (objet avec ID uniquement, pas de requête DB)
         if (dto.getRefTypeActivite() != null) {

@@ -4,8 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.sql.Ref;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -24,14 +24,14 @@ public class Parcelle {
     @Column(name = "reference_cadastrale", length = Integer.MAX_VALUE)
     private String referenceCadastrale;
 
-    @Column(name = "commune", length = Integer.MAX_VALUE)
-    private String commune;
+    @ManyToOne
+    private RefCommune commune;
 
-    @Column(name = "quartier", length = Integer.MAX_VALUE)
-    private String quartier;
+    @ManyToOne
+    private RefQuartier quartier;
 
-    @Column(name = "rue_avenue", length = Integer.MAX_VALUE)
-    private String rueAvenue;
+    @ManyToOne
+    private RefAvenue rueAvenue;
 
     @Column(name = "numero_adresse", length = Integer.MAX_VALUE)
     private String numeroAdresse;

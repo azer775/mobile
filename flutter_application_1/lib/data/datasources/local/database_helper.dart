@@ -42,44 +42,12 @@ class DatabaseHelper {
       )
     ''');
 
-    // Populate ref_type_activite with initial data
-    await db.execute('''
-      INSERT INTO ref_type_activite (libelle) VALUES
-      ('Commerce général'),
-      ('Agriculture'),
-      ('Artisanat'),
-      ('Services'),
-      ('Transport'),
-      ('Restauration'),
-      ('Hôtellerie'),
-      ('Construction'),
-      ('Industrie'),
-      ('Santé'),
-      ('Éducation'),
-      ('Télécommunications'),
-      ('Banque et Finance'),
-      ('Immobilier'),
-      ('Autre')
-    ''');
-
     // Create ref_zone_type reference table
     await db.execute('''
       CREATE TABLE ref_zone_type (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         libelle TEXT NOT NULL
       )
-    ''');
-
-    // Populate ref_zone_type with initial data
-    await db.execute('''
-      INSERT INTO ref_zone_type (libelle) VALUES
-      ('Zone urbaine'),
-      ('Zone périurbaine'),
-      ('Zone rurale'),
-      ('Zone industrielle'),
-      ('Zone commerciale'),
-      ('Zone résidentielle'),
-      ('Zone mixte')
     ''');
 
     // Create ref_commune reference table
@@ -90,35 +58,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Populate ref_commune with Kinshasa communes
-    await db.execute('''
-      INSERT INTO ref_commune (libelle) VALUES
-      ('Bandalungwa'),
-      ('Barumbu'),
-      ('Bumbu'),
-      ('Gombe'),
-      ('Kalamu'),
-      ('Kasa-Vubu'),
-      ('Kimbanseke'),
-      ('Kinshasa'),
-      ('Kintambo'),
-      ('Kisenso'),
-      ('Lemba'),
-      ('Limete'),
-      ('Lingwala'),
-      ('Makala'),
-      ('Maluku'),
-      ('Masina'),
-      ('Matete'),
-      ('Mont-Ngafula'),
-      ('Ndjili'),
-      ('Ngaba'),
-      ('Ngaliema'),
-      ('Ngiri-Ngiri'),
-      ('Nsele'),
-      ('Selembao')
-    ''');
-
     // Create ref_quartier reference table
     await db.execute('''
       CREATE TABLE ref_quartier (
@@ -127,42 +66,12 @@ class DatabaseHelper {
       )
     ''');
 
-    // Populate ref_quartier with sample quartiers
-    await db.execute('''
-      INSERT INTO ref_quartier (libelle) VALUES
-      ('Centre-ville'),
-      ('Matonge'),
-      ('Yolo'),
-      ('Righini'),
-      ('Livulu'),
-      ('Mbanza-Lemba'),
-      ('Funa'),
-      ('Industriel'),
-      ('Résidentiel'),
-      ('Commercial')
-    ''');
-
     // Create ref_avenue reference table
     await db.execute('''
       CREATE TABLE ref_avenue (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         libelle TEXT NOT NULL
       )
-    ''');
-
-    // Populate ref_avenue with sample avenues
-    await db.execute('''
-      INSERT INTO ref_avenue (libelle) VALUES
-      ('Avenue de la Libération'),
-      ('Avenue Lumumba'),
-      ('Avenue Kasavubu'),
-      ('Avenue du Commerce'),
-      ('Avenue de la Paix'),
-      ('Avenue des Huileries'),
-      ('Avenue Colonel Mondjiba'),
-      ('Avenue de l''Université'),
-      ('Avenue Sendwe'),
-      ('Avenue Kasa-Vubu')
     ''');
 
     // Create contribuables table
@@ -199,6 +108,10 @@ class DatabaseHelper {
         forme_juridique TEXT,
         numero_rccm TEXT,
         updated_at TEXT,
+        sync_status INTEGER NOT NULL DEFAULT 0,
+        sync_error TEXT,
+        sync_attempts INTEGER NOT NULL DEFAULT 0,
+        last_sync_at TEXT,
         FOREIGN KEY (activite_id) REFERENCES ref_type_activite (id),
         FOREIGN KEY (zone_id) REFERENCES ref_zone_type (id),
         FOREIGN KEY (commune_id) REFERENCES ref_commune (id),
@@ -231,6 +144,10 @@ class DatabaseHelper {
         source_donnee TEXT,
         created_at TEXT,
         updated_at TEXT,
+        sync_status INTEGER NOT NULL DEFAULT 0,
+        sync_error TEXT,
+        sync_attempts INTEGER NOT NULL DEFAULT 0,
+        last_sync_at TEXT,
         FOREIGN KEY (commune_id) REFERENCES ref_commune (id),
         FOREIGN KEY (quartier_id) REFERENCES ref_quartier (id),
         FOREIGN KEY (avenue_id) REFERENCES ref_avenue (id)
@@ -272,8 +189,81 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // All schema is now defined in _onCreate at version 1.
-    // Future migrations can be added here as needed.
+    if (oldVersion < 2) {
+      await _migrateToV2(db);
+    }
+    if (oldVersion < 3) {
+      await _migrateToV3(db);
+    }
+  }
+
+  Future<void> _migrateToV2(Database db) async {
+    await _addColumnIfNotExists(
+      db,
+      table: 'contribuables',
+      columnName: 'sync_status',
+      columnDefinition: 'INTEGER NOT NULL DEFAULT 0',
+    );
+    await _addColumnIfNotExists(
+      db,
+      table: 'contribuables',
+      columnName: 'sync_error',
+      columnDefinition: 'TEXT',
+    );
+    await _addColumnIfNotExists(
+      db,
+      table: 'contribuables',
+      columnName: 'sync_attempts',
+      columnDefinition: 'INTEGER NOT NULL DEFAULT 0',
+    );
+    await _addColumnIfNotExists(
+      db,
+      table: 'contribuables',
+      columnName: 'last_sync_at',
+      columnDefinition: 'TEXT',
+    );
+  }
+
+  Future<void> _migrateToV3(Database db) async {
+    await _addColumnIfNotExists(
+      db,
+      table: 'parcelles',
+      columnName: 'sync_status',
+      columnDefinition: 'INTEGER NOT NULL DEFAULT 0',
+    );
+    await _addColumnIfNotExists(
+      db,
+      table: 'parcelles',
+      columnName: 'sync_error',
+      columnDefinition: 'TEXT',
+    );
+    await _addColumnIfNotExists(
+      db,
+      table: 'parcelles',
+      columnName: 'sync_attempts',
+      columnDefinition: 'INTEGER NOT NULL DEFAULT 0',
+    );
+    await _addColumnIfNotExists(
+      db,
+      table: 'parcelles',
+      columnName: 'last_sync_at',
+      columnDefinition: 'TEXT',
+    );
+  }
+
+  Future<void> _addColumnIfNotExists(
+    Database db, {
+    required String table,
+    required String columnName,
+    required String columnDefinition,
+  }) async {
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    final exists = columns.any((column) => column['name'] == columnName);
+    if (!exists) {
+      await db.execute(
+        'ALTER TABLE $table ADD COLUMN $columnName $columnDefinition',
+      );
+    }
   }
 
   /// Generic insert method
@@ -338,6 +328,78 @@ class DatabaseHelper {
   ]) async {
     final db = await database;
     return await db.rawQuery(sql, arguments);
+  }
+
+  /// Replace all reference tables with fresh data from backend.
+  /// This force-deletes old references and inserts new rows with exact IDs.
+  Future<Map<String, int>> replaceReferenceData({
+    required List<Map<String, dynamic>> zoneTypes,
+    required List<Map<String, dynamic>> avenues,
+    required List<Map<String, dynamic>> quartiers,
+    required List<Map<String, dynamic>> communes,
+    required List<Map<String, dynamic>> typeActivites,
+  }) async {
+    final db = await database;
+    await db.execute('PRAGMA foreign_keys = OFF');
+
+    try {
+      return await db.transaction((txn) async {
+        await txn.delete('ref_zone_type');
+        await txn.delete('ref_avenue');
+        await txn.delete('ref_quartier');
+        await txn.delete('ref_commune');
+        await txn.delete('ref_type_activite');
+
+        final batch = txn.batch();
+
+        for (final row in zoneTypes) {
+          batch.rawInsert(
+            'INSERT INTO ref_zone_type (id, libelle) VALUES (?, ?)',
+            [row['id'], row['libelle']],
+          );
+        }
+
+        for (final row in avenues) {
+          batch.rawInsert(
+            'INSERT INTO ref_avenue (id, libelle) VALUES (?, ?)',
+            [row['id'], row['libelle']],
+          );
+        }
+
+        for (final row in quartiers) {
+          batch.rawInsert(
+            'INSERT INTO ref_quartier (id, libelle) VALUES (?, ?)',
+            [row['id'], row['libelle']],
+          );
+        }
+
+        for (final row in communes) {
+          batch.rawInsert(
+            'INSERT INTO ref_commune (id, libelle) VALUES (?, ?)',
+            [row['id'], row['libelle']],
+          );
+        }
+
+        for (final row in typeActivites) {
+          batch.rawInsert(
+            'INSERT INTO ref_type_activite (id, libelle) VALUES (?, ?)',
+            [row['id'], row['libelle']],
+          );
+        }
+
+        await batch.commit(noResult: true);
+
+        return {
+          'zoneTypes': zoneTypes.length,
+          'avenues': avenues.length,
+          'quartiers': quartiers.length,
+          'communes': communes.length,
+          'typeActivites': typeActivites.length,
+        };
+      });
+    } finally {
+      await db.execute('PRAGMA foreign_keys = ON');
+    }
   }
 
   /// Close database

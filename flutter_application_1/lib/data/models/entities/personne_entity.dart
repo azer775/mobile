@@ -42,6 +42,25 @@ class PersonneEntity extends BaseEntity {
     };
   }
 
+  Map<String, dynamic> toDto() {
+    final dto = <String, dynamic>{
+      'typePersonne': typePersonne.value,
+    };
+
+    void addIfNotNull(String key, dynamic value) {
+      if (value != null) {
+        dto[key] = value;
+      }
+    }
+
+    addIfNotNull('nomRaisonSociale', nomRaisonSociale);
+    addIfNotNull('nif', nif);
+    addIfNotNull('contact', contact);
+    addIfNotNull('adressePostale', adressePostale);
+
+    return dto;
+  }
+
   factory PersonneEntity.fromMap(Map<String, dynamic> map) {
     return PersonneEntity(
       id: map['id'] as int?,

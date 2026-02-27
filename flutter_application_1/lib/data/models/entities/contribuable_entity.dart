@@ -32,6 +32,10 @@ class ContribuableEntity extends BaseEntity {
   FormeJuridique? formeJuridique;
   String? numeroRCCM;
   String? majPar;
+  int syncStatus;
+  String? syncError;
+  int syncAttempts;
+  DateTime? lastSyncAt;
 
   ContribuableEntity({
     super.id,
@@ -64,6 +68,10 @@ class ContribuableEntity extends BaseEntity {
     this.majPar,
     this.formeJuridique,
     this.numeroRCCM,
+    this.syncStatus = 0,
+    this.syncError,
+    this.syncAttempts = 0,
+    this.lastSyncAt,
     super.updatedAt,
   }) : pieceIdentiteUrls = pieceIdentiteUrls ?? [];
 
@@ -118,7 +126,55 @@ class ContribuableEntity extends BaseEntity {
       'maj_par': majPar,
       'updated_at': updatedAt?.toIso8601String(),
       'numero_rccm': numeroRCCM,
+      'sync_status': syncStatus,
+      'sync_error': syncError,
+      'sync_attempts': syncAttempts,
+      'last_sync_at': lastSyncAt?.toIso8601String(),
     };
+  }
+
+  Map<String, dynamic> toDto() {
+    final dto = <String, dynamic>{
+      'typeContribuable': typeContribuable.value,
+      'telephone1': telephone1,
+      'origineFiche': origineFiche.value,
+    };
+
+    void addIfNotNull(String key, dynamic value) {
+      if (value != null) {
+        dto[key] = value;
+      }
+    }
+
+    addIfNotNull('nif', nif);
+    addIfNotNull('typeNif', typeNif?.value);
+    addIfNotNull('nom', nom);
+    addIfNotNull('postNom', postNom);
+    addIfNotNull('prenom', prenom);
+    addIfNotNull('raisonSociale', raisonSociale);
+    addIfNotNull('telephone2', telephone2);
+    addIfNotNull('email', email);
+    addIfNotNull('rue', rue);
+    addIfNotNull('numeroParcelle', numeroParcelle);
+    addIfNotNull('statut', statut);
+    addIfNotNull('gpsLatitude', gpsLatitude);
+    addIfNotNull('gpsLongitude', gpsLongitude);
+    addIfNotNull('dateInscription', _formatInstant(dateInscription));
+    addIfNotNull('dateMaj', _formatInstant(dateMaj));
+    addIfNotNull('formeJuridique', formeJuridique?.value);
+    addIfNotNull('numeroRccm', numeroRCCM);
+    addIfNotNull('refTypeActivite', activiteId);
+    addIfNotNull('refZoneType', zoneId);
+    addIfNotNull('refAvenue', avenueId);
+    addIfNotNull('refQuartier', quartierId);
+    addIfNotNull('refCommune', communeId);
+
+    return dto;
+  }
+
+  String? _formatInstant(DateTime? value) {
+    if (value == null) return null;
+    return value.toUtc().toIso8601String();
   }
 
   factory ContribuableEntity.fromMap(Map<String, dynamic> map) {
@@ -177,6 +233,12 @@ class ContribuableEntity extends BaseEntity {
           : null,
       formeJuridique: FormeJuridique.fromString(map['forme_juridique'] as String?),
       numeroRCCM: map['numero_rccm'] as String?,
+      syncStatus: map['sync_status'] as int? ?? 0,
+      syncError: map['sync_error'] as String?,
+      syncAttempts: map['sync_attempts'] as int? ?? 0,
+      lastSyncAt: map['last_sync_at'] != null
+          ? DateTime.parse(map['last_sync_at'] as String)
+          : null,
     );
   }
 
@@ -213,6 +275,10 @@ class ContribuableEntity extends BaseEntity {
     FormeJuridique? formeJuridique,
     String? numeroRCCM,
     DateTime? updatedAt,
+    int? syncStatus,
+    String? syncError,
+    int? syncAttempts,
+    DateTime? lastSyncAt,
   }) {
     return ContribuableEntity(
       id: id ?? this.id,
@@ -246,6 +312,10 @@ class ContribuableEntity extends BaseEntity {
       formeJuridique: formeJuridique ?? this.formeJuridique,
       numeroRCCM: numeroRCCM ?? this.numeroRCCM,
       updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      syncError: syncError ?? this.syncError,
+      syncAttempts: syncAttempts ?? this.syncAttempts,
+      lastSyncAt: lastSyncAt ?? this.lastSyncAt,
     );
   }
 }

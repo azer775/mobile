@@ -4,8 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
+
 
 import java.time.Instant;
 
@@ -18,12 +17,6 @@ public class Batiment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Integer id;
-
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @OnDelete(action = OnDeleteAction.CASCADE)
-//    @JoinColumn(name = "parcelle_id")
-//    private Parcelle parcelle;
-
     @NotNull
     @Column(name = "type_batiment", nullable = false, length = Integer.MAX_VALUE)
     private String typeBatiment;

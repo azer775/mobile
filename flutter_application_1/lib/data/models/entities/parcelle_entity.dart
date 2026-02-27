@@ -22,6 +22,10 @@ class ParcelleEntity extends BaseEntity {
   DateTime? dateCreation;
   DateTime? dateMiseAJour;
   String? sourceDonnee;
+  int syncStatus;
+  String? syncError;
+  int syncAttempts;
+  DateTime? lastSyncAt;
 
   ParcelleEntity({
     super.id,
@@ -43,6 +47,10 @@ class ParcelleEntity extends BaseEntity {
     this.dateCreation,
     this.dateMiseAJour,
     this.sourceDonnee,
+    this.syncStatus = 0,
+    this.syncError,
+    this.syncAttempts = 0,
+    this.lastSyncAt,
     super.createdAt,
     super.updatedAt,
   });
@@ -81,7 +89,38 @@ class ParcelleEntity extends BaseEntity {
       'source_donnee': sourceDonnee,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
+      'sync_status': syncStatus,
+      'sync_error': syncError,
+      'sync_attempts': syncAttempts,
+      'last_sync_at': lastSyncAt?.toIso8601String(),
     };
+  }
+
+  Map<String, dynamic> toDto() {
+    final dto = <String, dynamic>{
+      'statutParcelle': statutParcelle.value,
+    };
+
+    void addIfNotNull(String key, dynamic value) {
+      if (value != null) {
+        dto[key] = value;
+      }
+    }
+
+    addIfNotNull('codeParcelle', codeParcelle);
+    addIfNotNull('referenceCadastrale', referenceCadastrale);
+    addIfNotNull('numeroAdresse', numeroAdresse);
+    addIfNotNull('rue', rue);
+    addIfNotNull('numeroParcelle', numeroParcelle);
+    addIfNotNull('superficieM2', superficieM2);
+    addIfNotNull('gpsLat', gpsLat);
+    addIfNotNull('gpsLon', gpsLon);
+    addIfNotNull('sourceDonnee', sourceDonnee);
+    addIfNotNull('commune', communeId);
+    addIfNotNull('quartier', quartierId);
+    addIfNotNull('rueAvenue', avenueId);
+
+    return dto;
   }
 
   factory ParcelleEntity.fromMap(Map<String, dynamic> map) {
@@ -109,6 +148,12 @@ class ParcelleEntity extends BaseEntity {
           ? DateTime.parse(map['date_mise_a_jour'] as String)
           : null,
       sourceDonnee: map['source_donnee'] as String?,
+        syncStatus: map['sync_status'] as int? ?? 0,
+        syncError: map['sync_error'] as String?,
+        syncAttempts: map['sync_attempts'] as int? ?? 0,
+        lastSyncAt: map['last_sync_at'] != null
+          ? DateTime.parse(map['last_sync_at'] as String)
+          : null,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
@@ -138,6 +183,10 @@ class ParcelleEntity extends BaseEntity {
     DateTime? dateCreation,
     DateTime? dateMiseAJour,
     String? sourceDonnee,
+    int? syncStatus,
+    String? syncError,
+    int? syncAttempts,
+    DateTime? lastSyncAt,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -161,6 +210,10 @@ class ParcelleEntity extends BaseEntity {
       dateCreation: dateCreation ?? this.dateCreation,
       dateMiseAJour: dateMiseAJour ?? this.dateMiseAJour,
       sourceDonnee: sourceDonnee ?? this.sourceDonnee,
+      syncStatus: syncStatus ?? this.syncStatus,
+      syncError: syncError ?? this.syncError,
+      syncAttempts: syncAttempts ?? this.syncAttempts,
+      lastSyncAt: lastSyncAt ?? this.lastSyncAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

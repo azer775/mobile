@@ -103,6 +103,83 @@ class ContribuableLocalDatasource {
     return maps.map((map) => ContribuableEntity.fromMap(map)).toList();
   }
 
+  /// Get unsynced contribuables in stable order for batch export
+  Future<List<ContribuableEntity>> getUnsyncedContribuables({int limit = 20}) async {
+    final maps = await _dbHelper.query(
+      'contribuables',
+      where: 'sync_status != 1',
+      orderBy: 'created_at ASC, id ASC',
+      limit: limit,
+    );
+    return maps.map((map) => ContribuableEntity.fromMap(map)).toList();
+  }
+
+  /// Mark a batch as successfully synced
+  Future<void> markAsSynced(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final db = await _dbHelper.database;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    await db.rawUpdate(
+      'UPDATE contribuables '
+      'SET sync_status = 1, sync_error = NULL, last_sync_at = ? '
+      'WHERE id IN ($placeholders)',
+      [now, ...ids],
+    );
+  }
+
+  /// Delete exported contribuables and associated photos from device storage
+  Future<void> deleteExportedContribuables(List<ContribuableEntity> contribuables) async {
+    if (contribuables.isEmpty) return;
+
+    final cameraService = CameraService();
+    final ids = <int>[];
+
+    for (final contribuable in contribuables) {
+      if (contribuable.id != null) {
+        ids.add(contribuable.id!);
+      }
+
+      for (final photoPath in contribuable.pieceIdentiteUrls) {
+        await cameraService.deletePhoto(photoPath);
+      }
+    }
+
+    if (ids.isEmpty) return;
+
+    final db = await _dbHelper.database;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    await db.rawDelete(
+      'DELETE FROM contribuables WHERE id IN ($placeholders)',
+      ids,
+    );
+  }
+
+  /// Mark a batch as failed and increment attempts
+  Future<void> markAsFailed(List<int> ids, String error) async {
+    if (ids.isEmpty) return;
+    final db = await _dbHelper.database;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    await db.rawUpdate(
+      'UPDATE contribuables '
+      'SET sync_status = 2, sync_error = ?, sync_attempts = sync_attempts + 1, last_sync_at = ? '
+      'WHERE id IN ($placeholders)',
+      [error, now, ...ids],
+    );
+  }
+
+  /// Count records not yet synced
+  Future<int> countUnsynced() async {
+    final db = await _dbHelper.database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM contribuables WHERE sync_status != 1',
+    );
+    return result.first['count'] as int;
+  }
+
   /// Count total contribuables
   Future<int> countContribuables() async {
     final db = await _dbHelper.database;

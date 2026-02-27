@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/contribuable_export_service.dart';
 import '../../core/utils/success_popup.dart';
 import '../../data/datasources/local/contribuable_local_datasource.dart';
 import '../../data/models/entities/contribuable_entity.dart';
@@ -187,43 +188,60 @@ class _ContribuablesPageState extends State<ContribuablesPage> {
     );
   }
 
-  void _exportContribuables() {
-    print('\n========== EXPORT CONTRIBUABLES ==========');
-    print('Total: ${_filteredContribuables.length} contribuable(s)');
-    print('Date: ${DateTime.now()}');
-    print('==========================================\n');
-    
-    for (int i = 0; i < _filteredContribuables.length; i++) {
-      final c = _filteredContribuables[i];
-      print('--- Contribuable ${i + 1} ---');
-      print('ID: ${c.id}');
-      print('NIF: ${c.nif ?? "N/A"}');
-      print('Type: ${c.typeContribuable.displayName}');
-      print('Nom: ${c.fullName}');
-      print('Téléphone: ${c.telephone1}');
-      if (c.telephone2 != null && c.telephone2!.isNotEmpty) {
-        print('Téléphone 2: ${c.telephone2}');
+  Future<void> _exportContribuables() async {
+    if (!mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            SizedBox(width: 16),
+            Expanded(child: Text('Export en cours...')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final result = await ContribuableExportService.instance.exportAll(
+        chunkSize: 20,
+      );
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
-      print('Email: ${c.email ?? "N/A"}');
-      print('Origine: ${c.origineFiche.displayName}');
-      if (c.hasLocation) {
-        print('GPS: ${c.gpsLatitude}, ${c.gpsLongitude}');
-      }
-      print('Photos: ${c.pieceIdentiteUrls.length}');
-      print('Créé par: ${c.creePar}');
-      print('Date création: ${c.createdAt}');
-      print('');
-    }
-    
-    print('========== FIN EXPORT ==========\n');
-    
-    if (mounted) {
+
+      await _loadContribuables();
+
+      if (!mounted) return;
+      final isSuccess = result.failedCount == 0;
+      final message = isSuccess
+          ? '${result.syncedCount} contribuable(s) exporté(s) avec succès'
+          : 'Export partiel: ${result.syncedCount} succès, ${result.failedCount} échec(s)';
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${_filteredContribuables.length} contribuable(s) exporté(s) dans la console'),
-          backgroundColor: Colors.green,
+          content: Text(message),
+          backgroundColor: isSuccess ? Colors.green : Colors.orange,
         ),
       );
+    } catch (error) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur export: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

@@ -45,6 +45,26 @@ class BatimentEntity extends BaseEntity {
     };
   }
 
+  Map<String, dynamic> toDto() {
+    final dto = <String, dynamic>{
+      'typeBatiment': typeBatiment.value,
+      'usagePrincipal': usagePrincipal.value,
+      'statutBatiment': statutBatiment.value,
+    };
+
+    void addIfNotNull(String key, dynamic value) {
+      if (value != null) {
+        dto[key] = value;
+      }
+    }
+
+    addIfNotNull('nombreEtages', nombreEtages);
+    addIfNotNull('anneeConstruction', anneeConstruction);
+    addIfNotNull('surfaceBatieM2', surfaceBatieM2);
+
+    return dto;
+  }
+
   factory BatimentEntity.fromMap(Map<String, dynamic> map) {
     return BatimentEntity(
       id: map['id'] as int?,

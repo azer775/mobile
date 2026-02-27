@@ -21,11 +21,5 @@ public class RefTypeActivite {
     @Column(name = "libelle", nullable = false, length = Integer.MAX_VALUE)
     private String libelle;
 
-    @Override
-    public String toString() {
-        return "RefTypeActivite{" +
-                "id=" + id +
-                ", libelle='" + libelle + '\'' +
-                '}';
-    }
+   
 }

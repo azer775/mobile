@@ -618,6 +618,19 @@ class _ContribuableFormState extends State<ContribuableForm> {
 
   @override
   Widget build(BuildContext context) {
+    final refsLoaded =
+      !_isLoadingActivites &&
+      !_isLoadingZones &&
+      !_isLoadingCommunes &&
+      !_isLoadingQuartiers &&
+      !_isLoadingAvenues;
+    final hasMissingRefs =
+      _typeActivites.isEmpty ||
+      _zoneTypes.isEmpty ||
+      _communes.isEmpty ||
+      _quartiers.isEmpty ||
+      _avenues.isEmpty;
+
     // Scaffold provides the basic page structure with AppBar
     return Scaffold(
       appBar: AppBar(
@@ -634,6 +647,32 @@ class _ContribuableFormState extends State<ContribuableForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (refsLoaded && hasMissingRefs) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Les données de référence sont incomplètes. '
+                          'Veuillez synchroniser les références depuis le serveur '
+                          'via le menu utilisateur sur la page d\'accueil.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // ---------------------------------------------------------
               // PHOTOS SECTION - ID document photos
               // ---------------------------------------------------------

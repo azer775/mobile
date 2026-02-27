@@ -3,7 +3,6 @@ package org.example.backend.controllers;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.example.backend.models.dtos.ContribuableDto;
@@ -42,13 +41,6 @@ public class ContribuableController {
     @PostMapping(value = "/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> saveContribuables(
             @RequestPart("data") String jsonData,
-            @RequestParam("creePar") String creePar,
-            @Parameter(description = "Files for contribuable at index 0")
-            @RequestPart(value = "files_0", required = false) List<MultipartFile> files0,
-            @Parameter(description = "Files for contribuable at index 1")
-            @RequestPart(value = "files_1", required = false) List<MultipartFile> files1,
-            @Parameter(description = "Files for contribuable at index 2")
-            @RequestPart(value = "files_2", required = false) List<MultipartFile> files2,
             HttpServletRequest request
     ) {
         try {
@@ -69,7 +61,7 @@ public class ContribuableController {
                 }
             }
 
-            contribuableService.saveContribuables(dtos, creePar, filesMap);
+            contribuableService.saveContribuables(dtos, filesMap);
 
             return ResponseEntity.ok("Opération terminée avec succès. " + dtos.size() + " contribuable(s) enregistré(s).");
         } catch (Exception e) {
