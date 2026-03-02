@@ -19,4 +19,4 @@ services:
       APK_STORAGE_DIR: ${APK_STORAGE_DIR}
     volumes:
       - ${FILE_UPLOAD_DIR}:${FILE_UPLOAD_DIR}
-      - ${APK_STORAGE_DIR}:${APK_STORAGE_DIR}
+      - ${APK_STORAGE_DIR}:/app/apks

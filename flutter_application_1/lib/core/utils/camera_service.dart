@@ -15,7 +15,7 @@ class CameraService {
         source: ImageSource.camera,
         maxWidth: 800, // Resize to save storage
         maxHeight: 800,
-        imageQuality: 85, // Compress slightly
+        imageQuality: 65, // Compress slightly
       );
 
       if (photo == null) return null;
@@ -36,7 +36,7 @@ class CameraService {
         source: ImageSource.gallery,
         maxWidth: 800,
         maxHeight: 800,
-        imageQuality: 85,
+        imageQuality: 65,
       );
 
       if (image == null) return null;
