@@ -1,0 +1,15 @@
+target/
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+
+uploads/
+apk/
+.env
+.env.*
+!.env.example
+
+Dockerfile
+docker-compose.yml

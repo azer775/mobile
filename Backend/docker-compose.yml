@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:${SERVER_PORT}:${SERVER_PORT}"
+    environment:
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO}
+      SERVER_PORT: ${SERVER_PORT}
+      FILE_UPLOAD_DIR: ${FILE_UPLOAD_DIR}
+      APK_STORAGE_DIR: ${APK_STORAGE_DIR}
+    volumes:
+      - ${FILE_UPLOAD_DIR}:${FILE_UPLOAD_DIR}
+      - ${APK_STORAGE_DIR}:${APK_STORAGE_DIR}

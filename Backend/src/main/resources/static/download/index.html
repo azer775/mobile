@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Téléchargement - Contribuable</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 440px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 22px;
+        }
+
+        p {
+            margin: 0 0 16px;
+            color: #4b5563;
+        }
+
+        .row {
+            margin-bottom: 14px;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .btn {
+            display: inline-block;
+            text-decoration: none;
+            background: #2563eb;
+            color: #ffffff;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: #1d4ed8;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            color: #b91c1c;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>Contribuable</h1>
+    <p>Téléchargez la dernière version Android de l'application Contribuable.</p>
+
+    <div id="fileInfo" class="row hidden"></div>
+    <div id="error" class="error hidden"></div>
+
+    <a id="downloadBtn" class="btn hidden" href="#">Télécharger l'APK</a>
+</div>
+
+<script>
+    async function loadLatestApk() {
+        const fileInfo = document.getElementById('fileInfo');
+        const error = document.getElementById('error');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        try {
+            const response = await fetch('/api/apk/latest');
+            if (!response.ok) {
+                throw new Error('Aucun fichier APK n\'est disponible pour le moment.');
+            }
+
+            const data = await response.json();
+            fileInfo.textContent = `Fichier disponible : ${data.fileName}`;
+            fileInfo.classList.remove('hidden');
+
+            downloadBtn.href = `/api/apk/download/${encodeURIComponent(data.fileName)}`;
+            downloadBtn.classList.remove('hidden');
+        } catch (e) {
+            error.textContent = e.message || 'Impossible de charger les informations de téléchargement.';
+            error.classList.remove('hidden');
+        }
+    }
+
+    loadLatestApk();
+</script>
+</body>
+</html>
