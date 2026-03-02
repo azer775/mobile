@@ -16,7 +16,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -64,6 +67,34 @@ public class ApkDownloadController {
         } catch (IOException e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    @GetMapping("/pdfs")
+    public ResponseEntity<List<Map<String, Object>>> listPdfs() {
+        List<Map<String, Object>> pdfs = new ArrayList<>();
+        try (Stream<Path> files = Files.list(apkStorageDir)) {
+            files.filter(path -> !Files.isDirectory(path))
+                 .filter(path -> path.getFileName().toString().toLowerCase().endsWith(".pdf"))
+                 .sorted(Comparator.comparing((Path path) -> {
+                     try {
+                         return Files.getLastModifiedTime(path);
+                     } catch (IOException e) {
+                         return null;
+                     }
+                 }, Comparator.nullsFirst(Comparator.naturalOrder())).reversed())
+                 .forEach(path -> {
+                     try {
+                         Map<String, Object> info = new HashMap<>();
+                         info.put("fileName", path.getFileName().toString());
+                         info.put("size", Files.size(path));
+                         info.put("lastModified", Files.getLastModifiedTime(path).toMillis());
+                         pdfs.add(info);
+                     } catch (IOException ignored) {}
+                 });
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
+        }
+        return ResponseEntity.ok(pdfs);
     }
 
     @GetMapping("/download/{fileName:.+}")

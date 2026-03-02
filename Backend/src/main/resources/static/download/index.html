@@ -64,6 +64,48 @@
             color: #b91c1c;
             font-size: 14px;
         }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 20px 0 10px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            color: #1f2937;
+        }
+
+        .pdf-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .pdf-list li {
+            margin-bottom: 8px;
+        }
+
+        .pdf-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            background: #f3f4f6;
+            color: #374151;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .pdf-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .pdf-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body>
@@ -75,6 +117,11 @@
     <div id="error" class="error hidden"></div>
 
     <a id="downloadBtn" class="btn hidden" href="#">Télécharger l'APK</a>
+
+    <div id="pdfSection" class="hidden">
+        <p class="section-title">Documents PDF</p>
+        <ul id="pdfList" class="pdf-list"></ul>
+    </div>
 </div>
 
 <script>
@@ -101,7 +148,31 @@
         }
     }
 
+    async function loadPdfs() {
+        try {
+            const response = await fetch('/api/apk/pdfs');
+            if (!response.ok) return;
+            const pdfs = await response.json();
+            if (pdfs.length === 0) return;
+
+            const pdfList = document.getElementById('pdfList');
+            pdfs.forEach(pdf => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.className = 'pdf-btn';
+                a.href = `/api/apk/download/${encodeURIComponent(pdf.fileName)}`;
+                a.innerHTML = `<span class="pdf-icon">📄</span> ${pdf.fileName}`;
+                li.appendChild(a);
+                pdfList.appendChild(li);
+            });
+            document.getElementById('pdfSection').classList.remove('hidden');
+        } catch (e) {
+            // silently ignore
+        }
+    }
+
     loadLatestApk();
+    loadPdfs();
 </script>
 </body>
 </html>
