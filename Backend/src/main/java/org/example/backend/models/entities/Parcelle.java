@@ -1,6 +1,7 @@
 package org.example.backend.models.entities;
 
 import jakarta.persistence.*;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,6 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
+@Data
 @Table(name = "parcelles")
 public class Parcelle {
     @Id

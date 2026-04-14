@@ -1,6 +1,7 @@
 package org.example.backend.models.entities;
 
 import jakarta.persistence.*;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,6 +10,7 @@ import java.util.List;
 
 @Getter
 @Setter
+@Data
 @Entity
 @Table(name = "contribuables")
 public class Contribuable {
