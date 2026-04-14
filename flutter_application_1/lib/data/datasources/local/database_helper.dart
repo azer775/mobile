@@ -34,22 +34,6 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Create ref_type_activite reference table
-    await db.execute('''
-      CREATE TABLE ref_type_activite (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        libelle TEXT NOT NULL
-      )
-    ''');
-
-    // Create ref_zone_type reference table
-    await db.execute('''
-      CREATE TABLE ref_zone_type (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        libelle TEXT NOT NULL
-      )
-    ''');
-
     // Create ref_commune reference table
     await db.execute('''
       CREATE TABLE ref_commune (
@@ -74,52 +58,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // Create contribuables table
-    await db.execute('''
-      CREATE TABLE contribuables (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nif TEXT,
-        type_nif TEXT,
-        type_contribuable TEXT NOT NULL,
-        nom TEXT,
-        post_nom TEXT,
-        prenom TEXT,
-        raison_sociale TEXT,
-        telephone1 TEXT NOT NULL,
-        telephone2 TEXT,
-        email TEXT,
-        commune_id INTEGER,
-        quartier_id INTEGER,
-        avenue_id INTEGER,
-        rue TEXT,
-        numero_parcelle TEXT,
-        origine_fiche TEXT NOT NULL,
-        activite_id INTEGER,
-        zone_id INTEGER,
-        statut INTEGER,
-        gps_latitude REAL,
-        gps_longitude REAL,
-        piece_identite_url TEXT,
-        date_inscription TEXT,
-        created_at TEXT,
-        cree_par TEXT NOT NULL,
-        date_maj TEXT,
-        maj_par TEXT,
-        forme_juridique TEXT,
-        numero_rccm TEXT,
-        updated_at TEXT,
-        sync_status INTEGER NOT NULL DEFAULT 0,
-        sync_error TEXT,
-        sync_attempts INTEGER NOT NULL DEFAULT 0,
-        last_sync_at TEXT,
-        FOREIGN KEY (activite_id) REFERENCES ref_type_activite (id),
-        FOREIGN KEY (zone_id) REFERENCES ref_zone_type (id),
-        FOREIGN KEY (commune_id) REFERENCES ref_commune (id),
-        FOREIGN KEY (quartier_id) REFERENCES ref_quartier (id),
-        FOREIGN KEY (avenue_id) REFERENCES ref_avenue (id)
-      )
-    ''');
-
     // Create parcelles table
     await db.execute('''
       CREATE TABLE parcelles (
@@ -139,6 +77,8 @@ class DatabaseHelper {
         gps_lat REAL,
         gps_lon REAL,
         statut_parcelle TEXT NOT NULL,
+        rang_parcelle TEXT,
+        societe_immobiliere INTEGER,
         date_creation TEXT,
         date_mise_a_jour TEXT,
         source_donnee TEXT,
@@ -148,22 +88,27 @@ class DatabaseHelper {
         sync_error TEXT,
         sync_attempts INTEGER NOT NULL DEFAULT 0,
         last_sync_at TEXT,
+        photo_urls TEXT,
         FOREIGN KEY (commune_id) REFERENCES ref_commune (id),
         FOREIGN KEY (quartier_id) REFERENCES ref_quartier (id),
         FOREIGN KEY (avenue_id) REFERENCES ref_avenue (id)
       )
     ''');
 
-    // Create personnes table (1:1 with parcelle)
+    // Create contribuables table (proprietaire or locataire)
     await db.execute('''
-      CREATE TABLE personnes (
+      CREATE TABLE contribuables (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        type_personne TEXT NOT NULL,
+        type_contribuable TEXT NOT NULL,
+        nom TEXT,
+        prenom TEXT,
+        piece_identite TEXT,
         nom_raison_sociale TEXT,
         nif TEXT,
         contact TEXT,
+        email TEXT,
         adresse_postale TEXT,
-        parcelle_id INTEGER UNIQUE,
+        parcelle_id INTEGER,
         created_at TEXT,
         updated_at TEXT,
         FOREIGN KEY (parcelle_id) REFERENCES parcelles (id) ON DELETE CASCADE
@@ -186,84 +131,27 @@ class DatabaseHelper {
         FOREIGN KEY (parcelle_id) REFERENCES parcelles (id) ON DELETE CASCADE
       )
     ''');
+
+    // Create unites table (N:1 with batiment, FK to contribuable for locataire)
+    await db.execute('''
+      CREATE TABLE unites (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        batiment_id INTEGER,
+        type_unite TEXT,
+        superficie REAL,
+        contribuable_id INTEGER,
+        montant_loyer REAL,
+        date_debut_loyer TEXT,
+        created_at TEXT,
+        updated_at TEXT,
+        FOREIGN KEY (batiment_id) REFERENCES batiments (id) ON DELETE CASCADE,
+        FOREIGN KEY (contribuable_id) REFERENCES contribuables (id) ON DELETE SET NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await _migrateToV2(db);
-    }
-    if (oldVersion < 3) {
-      await _migrateToV3(db);
-    }
-  }
-
-  Future<void> _migrateToV2(Database db) async {
-    await _addColumnIfNotExists(
-      db,
-      table: 'contribuables',
-      columnName: 'sync_status',
-      columnDefinition: 'INTEGER NOT NULL DEFAULT 0',
-    );
-    await _addColumnIfNotExists(
-      db,
-      table: 'contribuables',
-      columnName: 'sync_error',
-      columnDefinition: 'TEXT',
-    );
-    await _addColumnIfNotExists(
-      db,
-      table: 'contribuables',
-      columnName: 'sync_attempts',
-      columnDefinition: 'INTEGER NOT NULL DEFAULT 0',
-    );
-    await _addColumnIfNotExists(
-      db,
-      table: 'contribuables',
-      columnName: 'last_sync_at',
-      columnDefinition: 'TEXT',
-    );
-  }
-
-  Future<void> _migrateToV3(Database db) async {
-    await _addColumnIfNotExists(
-      db,
-      table: 'parcelles',
-      columnName: 'sync_status',
-      columnDefinition: 'INTEGER NOT NULL DEFAULT 0',
-    );
-    await _addColumnIfNotExists(
-      db,
-      table: 'parcelles',
-      columnName: 'sync_error',
-      columnDefinition: 'TEXT',
-    );
-    await _addColumnIfNotExists(
-      db,
-      table: 'parcelles',
-      columnName: 'sync_attempts',
-      columnDefinition: 'INTEGER NOT NULL DEFAULT 0',
-    );
-    await _addColumnIfNotExists(
-      db,
-      table: 'parcelles',
-      columnName: 'last_sync_at',
-      columnDefinition: 'TEXT',
-    );
-  }
-
-  Future<void> _addColumnIfNotExists(
-    Database db, {
-    required String table,
-    required String columnName,
-    required String columnDefinition,
-  }) async {
-    final columns = await db.rawQuery('PRAGMA table_info($table)');
-    final exists = columns.any((column) => column['name'] == columnName);
-    if (!exists) {
-      await db.execute(
-        'ALTER TABLE $table ADD COLUMN $columnName $columnDefinition',
-      );
-    }
+    // Database reset to v1 with contribuables table - no migrations needed
   }
 
   /// Generic insert method
@@ -333,31 +221,20 @@ class DatabaseHelper {
   /// Replace all reference tables with fresh data from backend.
   /// This force-deletes old references and inserts new rows with exact IDs.
   Future<Map<String, int>> replaceReferenceData({
-    required List<Map<String, dynamic>> zoneTypes,
     required List<Map<String, dynamic>> avenues,
     required List<Map<String, dynamic>> quartiers,
     required List<Map<String, dynamic>> communes,
-    required List<Map<String, dynamic>> typeActivites,
   }) async {
     final db = await database;
     await db.execute('PRAGMA foreign_keys = OFF');
 
     try {
       return await db.transaction((txn) async {
-        await txn.delete('ref_zone_type');
         await txn.delete('ref_avenue');
         await txn.delete('ref_quartier');
         await txn.delete('ref_commune');
-        await txn.delete('ref_type_activite');
 
         final batch = txn.batch();
-
-        for (final row in zoneTypes) {
-          batch.rawInsert(
-            'INSERT INTO ref_zone_type (id, libelle) VALUES (?, ?)',
-            [row['id'], row['libelle']],
-          );
-        }
 
         for (final row in avenues) {
           batch.rawInsert(
@@ -380,21 +257,12 @@ class DatabaseHelper {
           );
         }
 
-        for (final row in typeActivites) {
-          batch.rawInsert(
-            'INSERT INTO ref_type_activite (id, libelle) VALUES (?, ?)',
-            [row['id'], row['libelle']],
-          );
-        }
-
         await batch.commit(noResult: true);
 
         return {
-          'zoneTypes': zoneTypes.length,
           'avenues': avenues.length,
           'quartiers': quartiers.length,
           'communes': communes.length,
-          'typeActivites': typeActivites.length,
         };
       });
     } finally {
@@ -409,19 +277,17 @@ class DatabaseHelper {
     _database = null;
   }
 
-  /// Delete all data from all tables (contribuables, ref_type_activite, ref_zone_type)
-  /// Also deletes all photos associated with contribuables
-  /// Note: This deletes contribuables first due to foreign key constraints
+  /// Delete all data from all tables
+  /// Also deletes all photos associated with parcelles
   /// Returns a map with the count of deleted rows per table
   Future<Map<String, int>> deleteAllData() async {
     final db = await database;
-    
-    // First, get all contribuables to delete their photos
-    final contribuables = await db.query('contribuables', columns: ['piece_identite_url']);
     final cameraService = CameraService();
     
-    for (final row in contribuables) {
-      final photoData = row['piece_identite_url'];
+    // Delete parcelle photos from device storage
+    final parcelles = await db.query('parcelles', columns: ['photo_urls']);
+    for (final row in parcelles) {
+      final photoData = row['photo_urls'];
       if (photoData != null && photoData is String && photoData.isNotEmpty) {
         try {
           List<String> photoUrls;
@@ -438,18 +304,26 @@ class DatabaseHelper {
         }
       }
     }
-    
-    // Delete contribuables first (has foreign keys to ref tables)
+
+    // Delete parcelle-related tables (order matters for FK constraints)
+    final unitesDeleted = await db.delete('unites');
+    final batimentsDeleted = await db.delete('batiments');
     final contribuablesDeleted = await db.delete('contribuables');
-    
+    final parcellesDeleted = await db.delete('parcelles');
+
     // Delete reference tables
-    final activitesDeleted = await db.delete('ref_type_activite');
-    final zonesDeleted = await db.delete('ref_zone_type');
+    final communesDeleted = await db.delete('ref_commune');
+    final quartiersDeleted = await db.delete('ref_quartier');
+    final avenuesDeleted = await db.delete('ref_avenue');
     
     return {
+      'parcelles': parcellesDeleted,
+      'batiments': batimentsDeleted,
       'contribuables': contribuablesDeleted,
-      'ref_type_activite': activitesDeleted,
-      'ref_zone_type': zonesDeleted,
+      'unites': unitesDeleted,
+      'ref_commune': communesDeleted,
+      'ref_quartier': quartiersDeleted,
+      'ref_avenue': avenuesDeleted,
     };
   }
 }

@@ -16,4 +16,5 @@ public class BatimentDto {
     Double surfaceBatieM2;
     String usagePrincipal;
     String statutBatiment;
+    java.util.List<UniteDto> unites;
 }

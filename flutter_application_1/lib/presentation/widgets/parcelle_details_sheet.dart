@@ -1,16 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../data/datasources/local/ref_commune_local_datasource.dart';
 import '../../data/datasources/local/ref_quartier_local_datasource.dart';
 import '../../data/datasources/local/ref_avenue_local_datasource.dart';
 import '../../data/models/entities/parcelle_entity.dart';
-import '../../data/models/entities/personne_entity.dart';
+import '../../data/models/entities/contribuable_entity.dart';
 import '../../data/models/entities/batiment_entity.dart';
 import '../../data/models/enums/parcelle_enums.dart';
 
 /// Bottom sheet widget for displaying parcelle details
 class ParcelleDetailsSheet extends StatefulWidget {
   final ParcelleEntity parcelle;
-  final PersonneEntity? personne;
+  final ContribuableEntity? contribuable;
   final List<BatimentEntity> batiments;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -18,7 +20,7 @@ class ParcelleDetailsSheet extends StatefulWidget {
   const ParcelleDetailsSheet({
     super.key,
     required this.parcelle,
-    this.personne,
+    this.contribuable,
     this.batiments = const [],
     required this.onEdit,
     required this.onDelete,
@@ -59,10 +61,33 @@ class _ParcelleDetailsSheetState extends State<ParcelleDetailsSheet> {
   }
 
   ParcelleEntity get parcelle => widget.parcelle;
-  PersonneEntity? get personne => widget.personne;
+  ContribuableEntity? get contribuable => widget.contribuable;
   List<BatimentEntity> get batiments => widget.batiments;
   VoidCallback get onEdit => widget.onEdit;
   VoidCallback get onDelete => widget.onDelete;
+
+  void _viewPhoto(BuildContext context, String photoPath) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 0.5,
+              maxScale: 4,
+              child: Image.file(File(photoPath), fit: BoxFit.contain),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,21 +180,62 @@ class _ParcelleDetailsSheetState extends State<ParcelleDetailsSheet> {
 
               const SizedBox(height: 16),
 
+              // Photos
+              if (parcelle.photoUrls.isNotEmpty) ...[  
+                _buildSectionTitle(context, 'Photos (${parcelle.photoUrls.length})'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: parcelle.photoUrls.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => _viewPhoto(context, parcelle.photoUrls[index]),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              File(parcelle.photoUrls[index]),
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 100,
+                                height: 100,
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.broken_image),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Proprietaire
-              if (personne != null) ...[
+              if (contribuable != null) ...[
                 _buildSectionTitle(context, 'Propriétaire'),
                 const SizedBox(height: 8),
                 _buildDetailRow(
-                  personne!.typePersonne.value == 'physique' ? Icons.person : Icons.business,
-                  personne!.typePersonne.value.toUpperCase(),
-                  personne!.displayName,
+                  contribuable!.typeContribuable.value == 'physique' ? Icons.person : Icons.business,
+                  contribuable!.typeContribuable.value.toUpperCase(),
+                  contribuable!.displayName,
                 ),
-                if (personne!.nif != null)
-                  _buildDetailRow(Icons.badge, 'NIF', personne!.nif!),
-                if (personne!.contact != null)
-                  _buildDetailRow(Icons.phone, 'Contact', personne!.contact!),
-                if (personne!.adressePostale != null)
-                  _buildDetailRow(Icons.mail, 'Adresse Postale', personne!.adressePostale!),
+                if (contribuable!.pieceIdentite != null)
+                  _buildDetailRow(Icons.credit_card, "Pièce d'identité", contribuable!.pieceIdentite!),
+                if (contribuable!.nif != null)
+                  _buildDetailRow(Icons.badge, 'NIF', contribuable!.nif!),
+                if (contribuable!.contact != null)
+                  _buildDetailRow(Icons.phone, 'Téléphone', contribuable!.contact!),
+                if (contribuable!.email != null)
+                  _buildDetailRow(Icons.email, 'Email', contribuable!.email!),
+                if (contribuable!.adressePostale != null)
+                  _buildDetailRow(Icons.mail, 'Adresse Postale', contribuable!.adressePostale!),
                 const SizedBox(height: 16),
               ],
 

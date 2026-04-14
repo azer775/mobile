@@ -2,22 +2,33 @@ package org.example.backend.services;
 
 import org.example.backend.models.dtos.BatimentDto;
 import org.example.backend.models.dtos.ParcelleDto;
-import org.example.backend.models.dtos.PersonneDto;
+import org.example.backend.models.dtos.ContribuableDto;
+import org.example.backend.models.dtos.UniteDto;
 import org.example.backend.models.entities.*;
+import org.example.backend.repositories.ContribuableRepository;
 import org.example.backend.repositories.ParcelleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ParcelleService {
 
     @Autowired
     private ParcelleRepository parcelleRepository;
+
+    @Autowired
+    private ContribuableRepository contribuableRepository;
+
+    @Autowired
+    private FileService fileService;
 
     @Transactional
     public void saveAll(List<ParcelleDto> dtos) {
@@ -26,6 +37,32 @@ public class ParcelleService {
             parcelles.add(mapToEntity(dto));
         }
         parcelleRepository.saveAll(parcelles);
+    }
+
+    @Transactional
+    public void saveAllWithPhotos(List<ParcelleDto> dtos, List<MultipartFile> photos) throws IOException {
+        int photoOffset = 0;
+        for (ParcelleDto dto : dtos) {
+            Parcelle parcelle = mapToEntity(dto);
+
+            int count = dto.getPhotoCount() != null ? dto.getPhotoCount() : 0;
+            List<Document> documents = new ArrayList<>();
+            for (int j = 0; j < count && (photoOffset + j) < photos.size(); j++) {
+                MultipartFile file = photos.get(photoOffset + j);
+                String savedName = fileService.saveFile(file);
+
+                Document doc = new Document();
+                doc.setFileName(file.getOriginalFilename());
+                doc.setFilePath(savedName);
+                doc.setContentType(file.getContentType());
+                doc.setCreatedAt(Instant.now());
+                documents.add(doc);
+            }
+            parcelle.setDocuments(documents);
+            photoOffset += count;
+
+            parcelleRepository.save(parcelle);
+        }
     }
 
     @Transactional
@@ -76,13 +113,9 @@ public class ParcelleService {
             parcelle.setBatiments(batiments);
         }
 
-        // Mapper les personnes
-        if (dto.getPersonnes() != null && !dto.getPersonnes().isEmpty()) {
-            List<Personne> personnes = new ArrayList<>();
-            for (PersonneDto persDto : dto.getPersonnes()) {
-                personnes.add(mapPersonneToEntity(persDto));
-            }
-            parcelle.setPersonnes(personnes);
+        // Mapper le contribuable (propriétaire)
+        if (dto.getContribuable() != null) {
+            parcelle.setContribuable(findOrCreateContribuable(dto.getContribuable()));
         }
 
         return parcelle;
@@ -97,17 +130,67 @@ public class ParcelleService {
         batiment.setUsagePrincipal(dto.getUsagePrincipal());
         batiment.setStatutBatiment(dto.getStatutBatiment());
         batiment.setCreatedAt(Instant.now());
+
+        // Mapper les unités
+        if (dto.getUnites() != null && !dto.getUnites().isEmpty()) {
+            List<Unite> unites = new ArrayList<>();
+            for (UniteDto uniteDto : dto.getUnites()) {
+                unites.add(mapUniteToEntity(uniteDto));
+            }
+            batiment.setUnites(unites);
+        }
+
         return batiment;
     }
 
-    private Personne mapPersonneToEntity(PersonneDto dto) {
-        Personne personne = new Personne();
-        personne.setTypePersonne(dto.getTypePersonne());
-        personne.setNomRaisonSociale(dto.getNomRaisonSociale());
-        personne.setNif(dto.getNif());
-        personne.setContact(dto.getContact());
-        personne.setAdressePostale(dto.getAdressePostale());
-        personne.setCreatedAt(Instant.now());
-        return personne;
+    private Unite mapUniteToEntity(UniteDto dto) {
+        Unite unite = new Unite();
+        unite.setTypeUnite(dto.getTypeUnite());
+        unite.setSuperficie(dto.getSuperficie());
+        unite.setMontantLoyer(dto.getMontantLoyer());
+        if (dto.getDateDebutLoyer() != null) {
+            unite.setDateDebutLoyer(Instant.parse(dto.getDateDebutLoyer()));
+        }
+        unite.setCreatedAt(Instant.now());
+
+        // Mapper le locataire (contribuable)
+        if (dto.getLocataire() != null) {
+            unite.setLocataire(findOrCreateContribuable(dto.getLocataire()));
+        }
+
+        return unite;
+    }
+
+    private Contribuable findOrCreateContribuable(ContribuableDto dto) {
+        String type = dto.getTypeContribuable();
+
+        // Search by pieceIdentite for physique, nomRaisonSociale for morale
+        if ("physique".equalsIgnoreCase(type)) {
+            String key = dto.getPieceIdentite();
+            if (key != null && !key.isBlank()) {
+                Optional<Contribuable> existing = contribuableRepository.findFirstByPieceIdentite(key);
+                if (existing.isPresent()) return existing.get();
+            }
+        } else if ("morale".equalsIgnoreCase(type)) {
+            String key = dto.getNomRaisonSociale();
+            if (key != null && !key.isBlank()) {
+                Optional<Contribuable> existing = contribuableRepository.findFirstByNomRaisonSociale(key);
+                if (existing.isPresent()) return existing.get();
+            }
+        }
+
+        // No match found — create new
+        Contribuable contribuable = new Contribuable();
+        contribuable.setTypeContribuable(dto.getTypeContribuable());
+        contribuable.setNom(dto.getNom());
+        contribuable.setPrenom(dto.getPrenom());
+        contribuable.setPieceIdentite(dto.getPieceIdentite());
+        contribuable.setNomRaisonSociale(dto.getNomRaisonSociale());
+        contribuable.setNif(dto.getNif());
+        contribuable.setContact(dto.getContact());
+        contribuable.setEmail(dto.getEmail());
+        contribuable.setAdressePostale(dto.getAdressePostale());
+        contribuable.setCreatedAt(Instant.now());
+        return contribuableRepository.save(contribuable);
     }
 }

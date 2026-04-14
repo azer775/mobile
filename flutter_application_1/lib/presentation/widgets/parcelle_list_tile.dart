@@ -96,14 +96,10 @@ class ParcelleListTile extends StatelessWidget {
 
   Color _getStatusColor(StatutParcelle status) {
     switch (status) {
-      case StatutParcelle.active:
+      case StatutParcelle.bati:
         return Colors.green;
-      case StatutParcelle.fusionnee:
-        return Colors.blue;
-      case StatutParcelle.subdivisee:
+      case StatutParcelle.nonBati:
         return Colors.orange;
-      case StatutParcelle.archivee:
-        return Colors.grey;
     }
   }
 }

@@ -55,9 +55,8 @@ class HomePage extends StatelessWidget {
     final counts = result.counts;
     final details = counts == null
         ? ''
-        : ' (zones: ${counts['zoneTypes']}, avenues: ${counts['avenues']}, '
-            'quartiers: ${counts['quartiers']}, communes: ${counts['communes']}, '
-            'activités: ${counts['typeActivites']})';
+        : ' (avenues: ${counts['avenues']}, '
+            'quartiers: ${counts['quartiers']}, communes: ${counts['communes']})';
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -79,7 +78,7 @@ class HomePage extends StatelessWidget {
       // - Body in the middle
       // - FloatingActionButton, BottomNavigationBar, Drawer, etc.
       appBar: AppBar(
-        title: const Text('Home'),
+        title: const Text('DGRK'),
         actions: [
           if (authService.isLoggedIn)
             PopupMenuButton<String>(
@@ -169,23 +168,13 @@ class HomePage extends StatelessWidget {
             ],
             const SizedBox(height: 32),
 
-            // Button to access the Contribuables
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, '/contribuables');
-              },
-              icon: const Icon(Icons.account_balance),
-              label: const Text('Contribuables'),
-            ),
-            const SizedBox(height: 16),
-
             // Button to access the Immobilier module
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.pushNamed(context, '/immobilier');
               },
               icon: const Icon(Icons.landscape),
-              label: const Text('Immobilier'),
+              label: const Text('Parcelle'),
             ),
           ],
         ),

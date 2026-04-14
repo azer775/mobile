@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../pages/home_page.dart';
 import '../pages/login_page.dart';
-import '../pages/contribuables_page.dart';
 import '../pages/immobilier_page.dart';
 
 /// ============================================================================
@@ -23,7 +22,6 @@ class AppRoutes {
   // Route name constants - prevents typos!
   static const String login = '/login';
   static const String home = '/';
-  static const String contribuables = '/contribuables';
   static const String immobilier = '/immobilier';
 
   /// Simple routes map - for screens without parameters
@@ -32,7 +30,6 @@ class AppRoutes {
     return {
       login: (context) => const LoginPage(),
       home: (context) => const HomePage(),
-      contribuables: (context) => const ContribuablesPage(),
       immobilier: (context) => const ImmobilierPage(),
     };
   }

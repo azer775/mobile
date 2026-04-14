@@ -38,18 +38,14 @@ class RefsSyncService {
         );
       }
 
-      final zoneTypes = _parseRefList(response['zoneTypes']);
       final avenues = _parseRefList(response['avenues']);
       final quartiers = _parseRefList(response['quartiers']);
       final communes = _parseRefList(response['communes']);
-      final typeActivites = _parseRefList(response['typeActivites']);
 
       final counts = await _dbHelper.replaceReferenceData(
-        zoneTypes: zoneTypes,
         avenues: avenues,
         quartiers: quartiers,
         communes: communes,
-        typeActivites: typeActivites,
       );
 
       return RefsSyncResult(

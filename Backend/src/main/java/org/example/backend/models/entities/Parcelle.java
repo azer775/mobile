@@ -72,10 +72,13 @@ public class Parcelle {
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "parcelle_id")
     private List<Batiment> batiments;
+
+    @ManyToOne
+    @JoinColumn(name = "contribuable_id")
+    private Contribuable contribuable;
+
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "parcelle_id")
-    private List<Personne> personnes;
-
-
+    private List<Document> documents;
 
 }

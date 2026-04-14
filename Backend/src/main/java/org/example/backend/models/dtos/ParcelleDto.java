@@ -30,5 +30,8 @@ public class ParcelleDto {
 
     // Nested children
     List<BatimentDto> batiments;
-    List<PersonneDto> personnes;
+    ContribuableDto contribuable;
+
+    // Transient — used in multipart upload to map photo files to parcelles
+    Integer photoCount;
 }

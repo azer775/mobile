@@ -38,11 +38,13 @@ public class Batiment {
     @Column(name = "statut_batiment", nullable = false, length = Integer.MAX_VALUE)
     private String statutBatiment;
 
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "batiment_id")
+    private java.util.List<Unite> unites;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
     @Column(name = "updated_at")
     private Instant updatedAt;
-
-
 }

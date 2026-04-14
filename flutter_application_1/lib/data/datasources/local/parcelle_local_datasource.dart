@@ -1,6 +1,7 @@
 import 'database_helper.dart';
+import '../../../core/utils/camera_service.dart';
 import '../../models/entities/parcelle_entity.dart';
-import '../../models/entities/personne_entity.dart';
+import '../../models/entities/contribuable_entity.dart';
 import '../../models/entities/batiment_entity.dart';
 
 /// Local datasource for Parcelle operations
@@ -52,8 +53,16 @@ class ParcelleLocalDatasource {
     );
   }
 
-  /// Delete a parcelle (cascades to personne and batiments via FK)
+  /// Delete a parcelle (cascades to personne, batiments, and photos)
   Future<int> deleteParcelle(int id) async {
+    // Delete photo files from device storage
+    final parcelle = await getParcelleById(id);
+    if (parcelle != null && parcelle.photoUrls.isNotEmpty) {
+      final cameraService = CameraService();
+      for (final photoPath in parcelle.photoUrls) {
+        await cameraService.deletePhoto(photoPath);
+      }
+    }
     return await _dbHelper.delete(
       'parcelles',
       where: 'id = ?',
@@ -73,13 +82,13 @@ class ParcelleLocalDatasource {
     final parcelle = await getParcelleById(parcelleId);
     if (parcelle == null) return null;
 
-    final personneMaps = await _dbHelper.query(
-      'personnes',
+    final contribuableMaps = await _dbHelper.query(
+      'contribuables',
       where: 'parcelle_id = ?',
       whereArgs: [parcelleId],
     );
-    final personne = personneMaps.isNotEmpty 
-        ? PersonneEntity.fromMap(personneMaps.first) 
+    final contribuable = contribuableMaps.isNotEmpty 
+        ? ContribuableEntity.fromMap(contribuableMaps.first) 
         : null;
 
     final batimentMaps = await _dbHelper.query(
@@ -91,7 +100,7 @@ class ParcelleLocalDatasource {
 
     return {
       'parcelle': parcelle,
-      'personne': personne,
+      'personne': contribuable,
       'batiments': batiments,
     };
   }
@@ -123,6 +132,14 @@ class ParcelleLocalDatasource {
   Future<void> deleteExportedParcelles(List<ParcelleEntity> parcelles) async {
     if (parcelles.isEmpty) return;
 
+    // Delete photo files from device storage
+    final cameraService = CameraService();
+    for (final parcelle in parcelles) {
+      for (final photoPath in parcelle.photoUrls) {
+        await cameraService.deletePhoto(photoPath);
+      }
+    }
+
     final ids = parcelles.map((item) => item.id).whereType<int>().toList();
     if (ids.isEmpty) return;
 
@@ -134,7 +151,7 @@ class ParcelleLocalDatasource {
       ids,
     );
     await db.rawDelete(
-      'DELETE FROM personnes WHERE parcelle_id IN ($placeholders)',
+      'DELETE FROM contribuables WHERE parcelle_id IN ($placeholders)',
       ids,
     );
     await db.rawDelete(

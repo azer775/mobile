@@ -9,10 +9,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PersonneDto {
-    String typePersonne;
-    String nomRaisonSociale;
-    String nif;
-    String contact;
-    String adressePostale;
+public class UniteDto {
+    String typeUnite;
+    Double superficie;
+    ContribuableDto locataire;
+    Double montantLoyer;
+    String dateDebutLoyer;
 }

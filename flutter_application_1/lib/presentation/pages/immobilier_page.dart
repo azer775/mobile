@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '../../core/services/parcelle_export_service.dart';
 import '../../core/utils/success_popup.dart';
 import '../../data/datasources/local/parcelle_local_datasource.dart';
-import '../../data/datasources/local/personne_local_datasource.dart';
+import '../../data/datasources/local/contribuable_local_datasource.dart';
 import '../../data/datasources/local/batiment_local_datasource.dart';
 import '../../data/models/entities/parcelle_entity.dart';
-import '../../data/models/entities/personne_entity.dart';
+import '../../data/models/entities/contribuable_entity.dart';
 import '../../data/models/entities/batiment_entity.dart';
 import '../../data/models/enums/parcelle_enums.dart';
 import '../forms/immobilier_wizard.dart';
@@ -22,13 +22,13 @@ class ImmobilierPage extends StatefulWidget {
 
 class _ImmobilierPageState extends State<ImmobilierPage> {
   final ParcelleLocalDatasource _parcelleDatasource = ParcelleLocalDatasource();
-  final PersonneLocalDatasource _personneDatasource = PersonneLocalDatasource();
+  final ContribuableLocalDatasource _contribuableDatasource = ContribuableLocalDatasource();
   final BatimentLocalDatasource _batimentDatasource = BatimentLocalDatasource();
   final TextEditingController _searchController = TextEditingController();
 
   List<ParcelleEntity> _parcelles = [];
   List<ParcelleEntity> _filteredParcelles = [];
-  Map<int, PersonneEntity?> _personneByParcelleId = {};
+  Map<int, ContribuableEntity?> _contribuableByParcelleId = {};
   Map<int, int> _batimentCountByParcelleId = {};
   bool _isLoading = false;
   StatutParcelle? _filterStatus;
@@ -74,19 +74,19 @@ class _ImmobilierPageState extends State<ImmobilierPage> {
       final parcelles = await _parcelleDatasource.getAllParcelles();
       
       // Load associated data for each parcelle
-      final personneMap = <int, PersonneEntity?>{};
+      final contribuableMap = <int, ContribuableEntity?>{};
       final batimentCountMap = <int, int>{};
       
       for (final parcelle in parcelles) {
         if (parcelle.id != null) {
-          personneMap[parcelle.id!] = await _personneDatasource.getPersonneByParcelleId(parcelle.id!);
+          contribuableMap[parcelle.id!] = await _contribuableDatasource.getContribuableByParcelleId(parcelle.id!);
           batimentCountMap[parcelle.id!] = await _batimentDatasource.countBatimentsByParcelleId(parcelle.id!);
         }
       }
 
       setState(() {
         _parcelles = parcelles;
-        _personneByParcelleId = personneMap;
+        _contribuableByParcelleId = contribuableMap;
         _batimentCountByParcelleId = batimentCountMap;
         _filterParcelles();
       });
@@ -224,11 +224,11 @@ class _ImmobilierPageState extends State<ImmobilierPage> {
   }
 
   void _showDetails(ParcelleEntity parcelle) async {
-    PersonneEntity? personne;
+    ContribuableEntity? contribuable;
     List<BatimentEntity> batiments = [];
 
     if (parcelle.id != null) {
-      personne = await _personneDatasource.getPersonneByParcelleId(parcelle.id!);
+      contribuable = await _contribuableDatasource.getContribuableByParcelleId(parcelle.id!);
       batiments = await _batimentDatasource.getBatimentsByParcelleId(parcelle.id!);
     }
 
@@ -242,7 +242,7 @@ class _ImmobilierPageState extends State<ImmobilierPage> {
       ),
       builder: (context) => ParcelleDetailsSheet(
         parcelle: parcelle,
-        personne: personne,
+        contribuable: contribuable,
         batiments: batiments,
         onEdit: () {
           Navigator.pop(context);
@@ -260,7 +260,7 @@ class _ImmobilierPageState extends State<ImmobilierPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Immobilier'),
+        title: const Text('Parcelle'),
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download),
@@ -377,12 +377,12 @@ class _ImmobilierPageState extends State<ImmobilierPage> {
                           itemCount: _filteredParcelles.length,
                           itemBuilder: (context, index) {
                             final p = _filteredParcelles[index];
-                            final personne = _personneByParcelleId[p.id];
+                            final contribuable = _contribuableByParcelleId[p.id];
                             final batimentCount = _batimentCountByParcelleId[p.id] ?? 0;
                             return ParcelleListTile(
                               parcelle: p,
                               batimentCount: batimentCount,
-                              proprietaire: personne?.displayName,
+                              proprietaire: contribuable?.displayName,
                               onTap: () => _showDetails(p),
                             );
                           },

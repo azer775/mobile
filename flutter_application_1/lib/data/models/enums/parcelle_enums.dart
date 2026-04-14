@@ -1,17 +1,33 @@
 enum StatutParcelle {
-  active(value: 'active'),
-  fusionnee(value: 'fusionnée'),
-  subdivisee(value: 'subdivisée'),
-  archivee(value: 'archivée');
+  bati(value: 'Bâti'),
+  nonBati(value: 'Non bâti');
 
   final String value;
   const StatutParcelle({required this.value});
 
   static StatutParcelle fromString(String? value) {
-    if (value == null) return StatutParcelle.active;
+    if (value == null) return StatutParcelle.bati;
     return StatutParcelle.values.firstWhere(
-      (e) => e.value == value.toLowerCase(),
-      orElse: () => StatutParcelle.active,
+      (e) => e.value.toLowerCase() == value.toLowerCase(),
+      orElse: () => StatutParcelle.bati,
+    );
+  }
+}
+
+enum RangParcelle {
+  premier(value: '1er'),
+  deuxieme(value: '2ème'),
+  troisieme(value: '3ème'),
+  quatrieme(value: '4ème');
+
+  final String value;
+  const RangParcelle({required this.value});
+
+  static RangParcelle fromString(String? value) {
+    if (value == null) return RangParcelle.premier;
+    return RangParcelle.values.firstWhere(
+      (e) => e.value.toLowerCase() == value.toLowerCase(),
+      orElse: () => RangParcelle.premier,
     );
   }
 }
@@ -40,6 +56,7 @@ enum UsagePrincipal {
   residentiel(value: 'résidentiel'),
   commercial(value: 'commercial'),
   mixte(value: 'mixte'),
+  publique(value: 'publique'),
   autre(value: 'autre');
 
   final String value;
@@ -72,18 +89,36 @@ enum StatutBatiment {
   }
 }
 
-enum TypePersonne {
+enum TypeContribuable {
   physique(value: 'physique'),
   morale(value: 'morale');
 
   final String value;
-  const TypePersonne({required this.value});
+  const TypeContribuable({required this.value});
 
-  static TypePersonne fromString(String? value) {
-    if (value == null) return TypePersonne.physique;
-    return TypePersonne.values.firstWhere(
+  static TypeContribuable fromString(String? value) {
+    if (value == null) return TypeContribuable.physique;
+    return TypeContribuable.values.firstWhere(
       (e) => e.value == value.toLowerCase(),
-      orElse: () => TypePersonne.physique,
+      orElse: () => TypeContribuable.physique,
+    );
+  }
+}
+
+enum TypeUnite {
+  appartement(value: 'Appartement'),
+  bureau(value: 'Bureau'),
+  commerce(value: 'Commerce'),
+  entrepot(value: 'Entrepôt');
+
+  final String value;
+  const TypeUnite({required this.value});
+
+  static TypeUnite fromString(String? value) {
+    if (value == null) return TypeUnite.appartement;
+    return TypeUnite.values.firstWhere(
+      (e) => e.value.toLowerCase() == value.toLowerCase(),
+      orElse: () => TypeUnite.appartement,
     );
   }
 }

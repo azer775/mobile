@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import '../../data/datasources/local/batiment_local_datasource.dart';
 import '../../data/datasources/local/parcelle_local_datasource.dart';
-import '../../data/datasources/local/personne_local_datasource.dart';
+import '../../data/datasources/local/contribuable_local_datasource.dart';
+import '../../data/datasources/local/unite_local_datasource.dart';
 import '../../data/models/entities/parcelle_entity.dart';
 import '../constants/api_constants.dart';
 
@@ -31,7 +33,8 @@ class ParcelleExportService {
   ParcelleExportService._()
       : _parcelleDatasource = ParcelleLocalDatasource(),
         _batimentDatasource = BatimentLocalDatasource(),
-        _personneDatasource = PersonneLocalDatasource(),
+        _contribuableDatasource = ContribuableLocalDatasource(),
+        _uniteDatasource = UniteLocalDatasource(),
         _dio = Dio(
           BaseOptions(
             baseUrl: ApiConstants.baseUrl,
@@ -42,7 +45,8 @@ class ParcelleExportService {
 
   final ParcelleLocalDatasource _parcelleDatasource;
   final BatimentLocalDatasource _batimentDatasource;
-  final PersonneLocalDatasource _personneDatasource;
+  final ContribuableLocalDatasource _contribuableDatasource;
+  final UniteLocalDatasource _uniteDatasource;
   final Dio _dio;
 
   Future<ExportParcelleBatchResult> exportAll({int chunkSize = 20}) async {
@@ -86,6 +90,7 @@ class ParcelleExportService {
     }
 
     final ids = batch.map((item) => item.id).whereType<int>().toList();
+    final formData = FormData();
     final dtoList = <Map<String, dynamic>>[];
 
     for (final parcelle in batch) {
@@ -95,28 +100,54 @@ class ParcelleExportService {
         final batiments = await _batimentDatasource.getBatimentsByParcelleId(
           parcelle.id!,
         );
-        dto['batiments'] = batiments.map((item) => item.toDto()).toList();
+        final batimentDtos = <Map<String, dynamic>>[];
+        for (final bat in batiments) {
+          final batDto = bat.toDto();
+          if (bat.id != null) {
+            final unites = await _uniteDatasource.getUnitesByBatimentId(bat.id!);
+            batDto['unites'] = unites.map((u) => u.toDto()).toList();
+          } else {
+            batDto['unites'] = [];
+          }
+          batimentDtos.add(batDto);
+        }
+        dto['batiments'] = batimentDtos;
 
-        final personne = await _personneDatasource.getPersonneByParcelleId(
+        final contribuable = await _contribuableDatasource.getContribuableByParcelleId(
           parcelle.id!,
         );
-        dto['personnes'] = personne != null ? [personne.toDto()] : [];
+        dto['contribuable'] = contribuable?.toDto();
       } else {
         dto['batiments'] = [];
-        dto['personnes'] = [];
+        dto['contribuable'] = null;
       }
+
+      // Add photo files and track count
+      int photoCount = 0;
+      for (final photoPath in parcelle.photoUrls) {
+        final file = File(photoPath);
+        if (await file.exists()) {
+          formData.files.add(MapEntry(
+            'photos',
+            await MultipartFile.fromFile(photoPath),
+          ));
+          photoCount++;
+        }
+      }
+      dto['photoCount'] = photoCount;
 
       dtoList.add(dto);
     }
 
+    formData.fields.add(MapEntry('data', jsonEncode(dtoList)));
+
     try {
       final response = await _dio.post(
         '/parcelles/batch',
-        data: jsonEncode(dtoList),
+        data: formData,
         options: Options(
-          contentType: 'application/json',
-          sendTimeout: const Duration(seconds: 60),
-          receiveTimeout: const Duration(seconds: 60),
+          sendTimeout: const Duration(seconds: 120),
+          receiveTimeout: const Duration(seconds: 120),
           validateStatus: (status) => status != null && status >= 200 && status < 500,
         ),
       );

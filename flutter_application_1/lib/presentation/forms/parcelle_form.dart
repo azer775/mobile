@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import '../../core/utils/camera_service.dart';
 import '../../core/utils/validators.dart';
 import '../../core/utils/location_service.dart';
 import '../../data/datasources/local/ref_commune_local_datasource.dart';
@@ -35,6 +38,7 @@ class ParcelleForm extends StatefulWidget {
 class ParcelleFormState extends State<ParcelleForm> {
   final _formKey = GlobalKey<FormState>();
   final _locationService = LocationService();
+  final _cameraService = CameraService();
 
   // Data source instances for reference dropdowns
   final _refCommuneDatasource = RefCommuneLocalDatasource();
@@ -49,7 +53,8 @@ class ParcelleFormState extends State<ParcelleForm> {
   late final TextEditingController _superficieController;
 
   // Dropdown values
-  StatutParcelle _statutParcelle = StatutParcelle.active;
+  StatutParcelle _statutParcelle = StatutParcelle.bati;
+  bool? _societeImmobiliere;
 
   // Address dropdown selections (FK IDs, matching contribuable pattern)
   int? _communeId;
@@ -67,6 +72,9 @@ class ParcelleFormState extends State<ParcelleForm> {
   // GPS coordinates
   double? _latitude;
   double? _longitude;
+
+  // Photos
+  List<String> _photoPaths = [];
 
   // UI state
   bool _isLoading = false;
@@ -87,12 +95,14 @@ class ParcelleFormState extends State<ParcelleForm> {
       text: p?.superficieM2?.toString() ?? '',
     );
 
-    _statutParcelle = p?.statutParcelle ?? StatutParcelle.active;
+    _statutParcelle = p?.statutParcelle ?? StatutParcelle.bati;
+    _societeImmobiliere = p?.societeImmobiliere;
     _communeId = p?.communeId;
     _quartierId = p?.quartierId;
     _avenueId = p?.avenueId;
     _latitude = p?.gpsLat;
     _longitude = p?.gpsLon;
+    _photoPaths = List.from(p?.photoUrls ?? []);
 
     _loadReferenceData();
   }
@@ -189,9 +199,11 @@ class ParcelleFormState extends State<ParcelleForm> {
       gpsLat: _latitude,
       gpsLon: _longitude,
       statutParcelle: _statutParcelle,
+      societeImmobiliere: _societeImmobiliere,
       dateCreation: widget.parcelle?.dateCreation ?? DateTime.now(),
       dateMiseAJour: _isEditing ? DateTime.now() : null,
       sourceDonnee: widget.parcelle?.sourceDonnee ?? 'Application mobile',
+      photoUrls: _photoPaths,
       createdAt: widget.parcelle?.createdAt,
       updatedAt: DateTime.now(),
     );
@@ -255,6 +267,65 @@ class ParcelleFormState extends State<ParcelleForm> {
             child: const Text('Paramètres'),
           ),
         ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // PHOTO HANDLING METHODS
+  // ===========================================================================
+
+  void _showImageSourceOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Prendre une Photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _takePhoto();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choisir de la Galerie'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickFromGallery();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _takePhoto() async {
+    final path = await _cameraService.takePhoto();
+    if (path != null && mounted) {
+      setState(() => _photoPaths.add(path));
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    final path = await _cameraService.pickFromGallery();
+    if (path != null && mounted) {
+      setState(() => _photoPaths.add(path));
+    }
+  }
+
+  void _removePhoto(int index) {
+    setState(() => _photoPaths.removeAt(index));
+  }
+
+  void _viewPhoto(String photoPath) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _PhotoViewPage(photoPath: photoPath),
       ),
     );
   }
@@ -480,10 +551,52 @@ class ParcelleFormState extends State<ParcelleForm> {
                 }
               },
             ),
+            const SizedBox(height: 12),
+
+            // Société Immobilière radio buttons
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Société Immobilière',
+                prefixIcon: Icon(Icons.business),
+                border: OutlineInputBorder(),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<bool>(
+                      title: const Text('Oui'),
+                      value: true,
+                      groupValue: _societeImmobiliere,
+                      onChanged: (value) {
+                        setState(() => _societeImmobiliere = value);
+                      },
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  Expanded(
+                    child: RadioListTile<bool>(
+                      title: const Text('Non'),
+                      value: false,
+                      groupValue: _societeImmobiliere,
+                      onChanged: (value) {
+                        setState(() => _societeImmobiliere = value);
+                      },
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
 
             // GPS LOCATION SECTION
             _buildLocationSection(),
+            const SizedBox(height: 24),
+
+            // PHOTOS SECTION
+            _buildPhotosSection(),
             const SizedBox(height: 32),
 
             // SUBMIT BUTTON (only if showAppBar is true, i.e., standalone mode)
@@ -600,6 +713,156 @@ class ParcelleFormState extends State<ParcelleForm> {
           ),
         ),
       ],
+    );
+  }
+
+  // ===========================================================================
+  // PHOTOS SECTION WIDGETS
+  // ===========================================================================
+
+  Widget _buildPhotosSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionTitle('Photos de la Parcelle (${_photoPaths.length})'),
+            TextButton.icon(
+              onPressed: _showImageSourceOptions,
+              icon: const Icon(Icons.add_a_photo),
+              label: const Text('Ajouter'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_photoPaths.isEmpty)
+          Container(
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate, size: 40, color: Colors.grey.shade400),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Ajouter une photo de la parcelle',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 120,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _photoPaths.length + 1,
+              itemBuilder: (context, index) {
+                if (index == _photoPaths.length) {
+                  return _buildAddPhotoButton();
+                }
+                return _buildPhotoItem(index);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPhotoItem(int index) {
+    final photoPath = _photoPaths[index];
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () => _viewPhoto(photoPath),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.file(
+                File(photoPath),
+                width: 100,
+                height: 120,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: () => _removePhoto(index),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddPhotoButton() {
+    return GestureDetector(
+      onTap: _showImageSourceOptions,
+      child: Container(
+        width: 100,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add, size: 32, color: Colors.grey.shade600),
+            const SizedBox(height: 4),
+            Text('Ajouter', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// FULL-SCREEN PHOTO VIEWER
+// =============================================================================
+
+class _PhotoViewPage extends StatelessWidget {
+  final String photoPath;
+
+  const _PhotoViewPage({required this.photoPath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 0.5,
+          maxScale: 4,
+          child: Image.file(File(photoPath), fit: BoxFit.contain),
+        ),
+      ),
     );
   }
 }

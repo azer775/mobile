@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../base/base_entity.dart';
 import '../enums/parcelle_enums.dart';
 
@@ -19,9 +21,11 @@ class ParcelleEntity extends BaseEntity {
   double? gpsLat;
   double? gpsLon;
   StatutParcelle statutParcelle;
+  bool? societeImmobiliere;
   DateTime? dateCreation;
   DateTime? dateMiseAJour;
   String? sourceDonnee;
+  List<String> photoUrls;
   int syncStatus;
   String? syncError;
   int syncAttempts;
@@ -44,9 +48,11 @@ class ParcelleEntity extends BaseEntity {
     this.gpsLat,
     this.gpsLon,
     required this.statutParcelle,
+    this.societeImmobiliere,
     this.dateCreation,
     this.dateMiseAJour,
     this.sourceDonnee,
+    this.photoUrls = const [],
     this.syncStatus = 0,
     this.syncError,
     this.syncAttempts = 0,
@@ -84,9 +90,11 @@ class ParcelleEntity extends BaseEntity {
       'gps_lat': gpsLat,
       'gps_lon': gpsLon,
       'statut_parcelle': statutParcelle.value,
+      'societe_immobiliere': societeImmobiliere == null ? null : (societeImmobiliere! ? 1 : 0),
       'date_creation': dateCreation?.toIso8601String(),
       'date_mise_a_jour': dateMiseAJour?.toIso8601String(),
       'source_donnee': sourceDonnee,
+      'photo_urls': photoUrls.isNotEmpty ? jsonEncode(photoUrls) : null,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
       'sync_status': syncStatus,
@@ -119,6 +127,7 @@ class ParcelleEntity extends BaseEntity {
     addIfNotNull('commune', communeId);
     addIfNotNull('quartier', quartierId);
     addIfNotNull('rueAvenue', avenueId);
+    addIfNotNull('societeImmobiliere', societeImmobiliere);
 
     return dto;
   }
@@ -141,6 +150,9 @@ class ParcelleEntity extends BaseEntity {
       gpsLat: map['gps_lat'] != null ? (map['gps_lat'] as num).toDouble() : null,
       gpsLon: map['gps_lon'] != null ? (map['gps_lon'] as num).toDouble() : null,
       statutParcelle: StatutParcelle.fromString(map['statut_parcelle'] as String?),
+      societeImmobiliere: map['societe_immobiliere'] != null
+          ? (map['societe_immobiliere'] as int) == 1
+          : null,
       dateCreation: map['date_creation'] != null
           ? DateTime.parse(map['date_creation'] as String)
           : null,
@@ -148,6 +160,7 @@ class ParcelleEntity extends BaseEntity {
           ? DateTime.parse(map['date_mise_a_jour'] as String)
           : null,
       sourceDonnee: map['source_donnee'] as String?,
+      photoUrls: _parsePhotoUrls(map['photo_urls']),
         syncStatus: map['sync_status'] as int? ?? 0,
         syncError: map['sync_error'] as String?,
         syncAttempts: map['sync_attempts'] as int? ?? 0,
@@ -161,6 +174,18 @@ class ParcelleEntity extends BaseEntity {
           ? DateTime.parse(map['updated_at'] as String)
           : null,
     );
+  }
+
+  static List<String> _parsePhotoUrls(dynamic data) {
+    if (data == null || data is! String || data.isEmpty) return [];
+    try {
+      if (data.startsWith('[')) {
+        return List<String>.from(jsonDecode(data));
+      }
+      return [data];
+    } catch (_) {
+      return [];
+    }
   }
 
   ParcelleEntity copyWith({
@@ -180,9 +205,11 @@ class ParcelleEntity extends BaseEntity {
     double? gpsLat,
     double? gpsLon,
     StatutParcelle? statutParcelle,
+    bool? societeImmobiliere,
     DateTime? dateCreation,
     DateTime? dateMiseAJour,
     String? sourceDonnee,
+    List<String>? photoUrls,
     int? syncStatus,
     String? syncError,
     int? syncAttempts,
@@ -207,9 +234,11 @@ class ParcelleEntity extends BaseEntity {
       gpsLat: gpsLat ?? this.gpsLat,
       gpsLon: gpsLon ?? this.gpsLon,
       statutParcelle: statutParcelle ?? this.statutParcelle,
+      societeImmobiliere: societeImmobiliere ?? this.societeImmobiliere,
       dateCreation: dateCreation ?? this.dateCreation,
       dateMiseAJour: dateMiseAJour ?? this.dateMiseAJour,
       sourceDonnee: sourceDonnee ?? this.sourceDonnee,
+      photoUrls: photoUrls ?? this.photoUrls,
       syncStatus: syncStatus ?? this.syncStatus,
       syncError: syncError ?? this.syncError,
       syncAttempts: syncAttempts ?? this.syncAttempts,

@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import '../../data/models/entities/batiment_entity.dart';
+import '../../data/models/entities/unite_entity.dart';
 import '../../data/models/enums/parcelle_enums.dart';
 import 'batiment_form.dart';
 
 /// Batiment list step widget for the ImmobilierWizard (Step 3)
-/// 
-/// Allows users to add, view, and delete multiple batiments.
+///
+/// Allows users to add, view, and delete multiple batiments, each with its unités.
 class BatimentListStep extends StatefulWidget {
   final List<BatimentEntity> batiments;
+  final Map<int, List<UniteEntity>> unitesPerBatiment;
   final Function(List<BatimentEntity>) onBatimentsChanged;
+  final Function(Map<int, List<UniteEntity>>)? onUnitesChanged;
 
   const BatimentListStep({
     super.key,
     required this.batiments,
+    this.unitesPerBatiment = const {},
     required this.onBatimentsChanged,
+    this.onUnitesChanged,
   });
 
   @override
@@ -22,16 +27,23 @@ class BatimentListStep extends StatefulWidget {
 
 class BatimentListStepState extends State<BatimentListStep> {
   late List<BatimentEntity> _batiments;
+  late Map<int, List<UniteEntity>> _unitesPerBatiment;
 
   @override
   void initState() {
     super.initState();
     _batiments = List.from(widget.batiments);
+    _unitesPerBatiment = Map.from(widget.unitesPerBatiment);
   }
 
   /// Public method to get current batiments list
   List<BatimentEntity> getData() {
     return _batiments;
+  }
+
+  /// Public method to get current unités map
+  Map<int, List<UniteEntity>> getUnitesData() {
+    return _unitesPerBatiment;
   }
 
   void _addBatiment() {
@@ -46,11 +58,13 @@ class BatimentListStepState extends State<BatimentListStep> {
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
         child: BatimentForm(
-          onSave: (batiment) {
+          onSave: (batiment, unites) {
             setState(() {
               _batiments.add(batiment);
+              _unitesPerBatiment[_batiments.length - 1] = unites;
             });
             widget.onBatimentsChanged(_batiments);
+            widget.onUnitesChanged?.call(_unitesPerBatiment);
             Navigator.pop(context);
           },
         ),
@@ -71,11 +85,14 @@ class BatimentListStepState extends State<BatimentListStep> {
         ),
         child: BatimentForm(
           batiment: _batiments[index],
-          onSave: (batiment) {
+          unites: _unitesPerBatiment[index] ?? [],
+          onSave: (batiment, unites) {
             setState(() {
               _batiments[index] = batiment;
+              _unitesPerBatiment[index] = unites;
             });
             widget.onBatimentsChanged(_batiments);
+            widget.onUnitesChanged?.call(_unitesPerBatiment);
             Navigator.pop(context);
           },
         ),
@@ -88,7 +105,7 @@ class BatimentListStepState extends State<BatimentListStep> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmer la suppression'),
-        content: const Text('Voulez-vous vraiment supprimer ce bâtiment?'),
+        content: const Text('Voulez-vous vraiment supprimer ce bâtiment et toutes ses unités?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -106,8 +123,20 @@ class BatimentListStepState extends State<BatimentListStep> {
     if (confirm == true) {
       setState(() {
         _batiments.removeAt(index);
+        // Rebuild the map with shifted indices
+        final newMap = <int, List<UniteEntity>>{};
+        for (final entry in _unitesPerBatiment.entries) {
+          if (entry.key < index) {
+            newMap[entry.key] = entry.value;
+          } else if (entry.key > index) {
+            newMap[entry.key - 1] = entry.value;
+          }
+          // Skip the deleted index
+        }
+        _unitesPerBatiment = newMap;
       });
       widget.onBatimentsChanged(_batiments);
+      widget.onUnitesChanged?.call(_unitesPerBatiment);
     }
   }
 
@@ -172,6 +201,7 @@ class BatimentListStepState extends State<BatimentListStep> {
           // Batiments list
           ...List.generate(_batiments.length, (index) {
             final batiment = _batiments[index];
+            final uniteCount = (_unitesPerBatiment[index] ?? []).length;
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
@@ -192,7 +222,8 @@ class BatimentListStepState extends State<BatimentListStep> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
-                  '${batiment.usagePrincipal.value} • ${batiment.nombreEtages ?? "?"} étage(s)',
+                  '${batiment.usagePrincipal.value} • ${batiment.nombreEtages ?? "?"} étage(s)'
+                  '${uniteCount > 0 ? ' • $uniteCount unité(s)' : ''}',
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

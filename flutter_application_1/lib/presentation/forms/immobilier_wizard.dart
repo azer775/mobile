@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import '../../core/utils/success_popup.dart';
 import '../../data/datasources/local/parcelle_local_datasource.dart';
-import '../../data/datasources/local/personne_local_datasource.dart';
+import '../../data/datasources/local/contribuable_local_datasource.dart';
 import '../../data/datasources/local/batiment_local_datasource.dart';
+import '../../data/datasources/local/unite_local_datasource.dart';
 import '../../data/models/entities/parcelle_entity.dart';
-import '../../data/models/entities/personne_entity.dart';
+import '../../data/models/entities/contribuable_entity.dart';
 import '../../data/models/entities/batiment_entity.dart';
+import '../../data/models/entities/unite_entity.dart';
 import '../forms/parcelle_form.dart';
-import '../forms/personne_form.dart';
+import '../forms/contribuable_form.dart';
 import '../forms/batiment_list_step.dart';
 
 /// Immobilier Wizard - 3-step form for creating/editing Parcelle with Personne and Batiments
 /// 
 /// Step 1: Parcelle form
 /// Step 2: Personne form (owner)
-/// Step 3: Batiments list (0 or more buildings)
+/// Step 3: Batiments list (0 or more buildings, each with 0 or more unités)
 class ImmobilierWizard extends StatefulWidget {
   final int? parcelleId; // If provided, wizard is in edit mode
   final VoidCallback? onComplete;
@@ -31,8 +33,9 @@ class ImmobilierWizard extends StatefulWidget {
 
 class _ImmobilierWizardState extends State<ImmobilierWizard> {
   final ParcelleLocalDatasource _parcelleDatasource = ParcelleLocalDatasource();
-  final PersonneLocalDatasource _personneDatasource = PersonneLocalDatasource();
+  final ContribuableLocalDatasource _contribuableDatasource = ContribuableLocalDatasource();
   final BatimentLocalDatasource _batimentDatasource = BatimentLocalDatasource();
+  final UniteLocalDatasource _uniteDatasource = UniteLocalDatasource();
 
   int _currentStep = 0;
   bool _isLoading = false;
@@ -40,18 +43,21 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
 
   // Form keys for each step
   final GlobalKey<ParcelleFormState> _parcelleFormKey = GlobalKey<ParcelleFormState>();
-  final GlobalKey<PersonneFormState> _personneFormKey = GlobalKey<PersonneFormState>();
+  final GlobalKey<ContribuableFormState> _contribuableFormKey = GlobalKey<ContribuableFormState>();
   final GlobalKey<BatimentListStepState> _batimentListKey = GlobalKey<BatimentListStepState>();
 
   // Data holders
   ParcelleEntity? _parcelle;
-  PersonneEntity? _personne;
+  ContribuableEntity? _contribuable;
   List<BatimentEntity> _batiments = [];
+  Map<int, List<UniteEntity>> _unitesPerBatiment = {};
 
   // Existing IDs for edit mode
   int? _existingParcelleId;
-  int? _existingPersonneId;
+  int? _existingContribuableId;
   List<int> _existingBatimentIds = [];
+  // Map from batiment index to list of existing unite IDs
+  Map<int, List<int>> _existingUniteIds = {};
 
   bool get _isEditing => widget.parcelleId != null;
 
@@ -69,14 +75,31 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
     try {
       final details = await _parcelleDatasource.getParcelleWithDetails(widget.parcelleId!);
       if (details != null && mounted) {
+        final parcelle = details['parcelle'] as ParcelleEntity;
+        final contribuable = details['personne'] as ContribuableEntity?;
+        final batiments = (details['batiments'] as List<BatimentEntity>?) ?? [];
+
+        // Load unités for each batiment
+        final unitesMap = <int, List<UniteEntity>>{};
+        final existingUniteIdsMap = <int, List<int>>{};
+        for (int i = 0; i < batiments.length; i++) {
+          if (batiments[i].id != null) {
+            final unites = await _uniteDatasource.getUnitesByBatimentId(batiments[i].id!);
+            unitesMap[i] = unites;
+            existingUniteIdsMap[i] = unites.where((u) => u.id != null).map((u) => u.id!).toList();
+          }
+        }
+
         setState(() {
-          _parcelle = details['parcelle'] as ParcelleEntity;
-          _personne = details['personne'] as PersonneEntity?;
-          _batiments = (details['batiments'] as List<BatimentEntity>?) ?? [];
-          
+          _parcelle = parcelle;
+          _contribuable = contribuable;
+          _batiments = batiments;
+          _unitesPerBatiment = unitesMap;
+
           _existingParcelleId = _parcelle?.id;
-          _existingPersonneId = _personne?.id;
+          _existingContribuableId = _contribuable?.id;
           _existingBatimentIds = _batiments.map((b) => b.id!).toList();
+          _existingUniteIds = existingUniteIdsMap;
         });
       }
     } catch (e) {
@@ -100,14 +123,15 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
         setState(() => _currentStep = 1);
       }
     } else if (_currentStep == 1) {
-      // Validate Personne form
-      if (_personneFormKey.currentState?.validate() ?? false) {
-        _personne = _personneFormKey.currentState!.getData();
+      // Validate Contribuable form
+      if (_contribuableFormKey.currentState?.validate() ?? false) {
+        _contribuable = _contribuableFormKey.currentState!.getData();
         setState(() => _currentStep = 2);
       }
     } else if (_currentStep == 2) {
       // Save all data
       _batiments = _batimentListKey.currentState?.getData() ?? [];
+      _unitesPerBatiment = _batimentListKey.currentState?.getUnitesData() ?? {};
       _saveAllData();
     }
   }
@@ -116,9 +140,10 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
     if (_currentStep > 0) {
       // Save current step data before going back
       if (_currentStep == 1) {
-        _personne = _personneFormKey.currentState?.getData();
+        _contribuable = _contribuableFormKey.currentState?.getData();
       } else if (_currentStep == 2) {
         _batiments = _batimentListKey.currentState?.getData() ?? [];
+        _unitesPerBatiment = _batimentListKey.currentState?.getUnitesData() ?? {};
       }
       setState(() => _currentStep -= 1);
     } else {
@@ -135,20 +160,21 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
         return; // Don't allow skipping invalid step
       }
     } else if (_currentStep == 1) {
-      if (_personneFormKey.currentState?.validate() ?? false) {
-        _personne = _personneFormKey.currentState!.getData();
+      if (_contribuableFormKey.currentState?.validate() ?? false) {
+        _contribuable = _contribuableFormKey.currentState!.getData();
       } else if (step > 1) {
         return;
       }
     } else if (_currentStep == 2) {
       _batiments = _batimentListKey.currentState?.getData() ?? [];
+      _unitesPerBatiment = _batimentListKey.currentState?.getUnitesData() ?? {};
     }
 
     setState(() => _currentStep = step);
   }
 
   Future<void> _saveAllData() async {
-    if (_parcelle == null || _personne == null) {
+    if (_parcelle == null || _contribuable == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Données incomplètes')),
       );
@@ -173,20 +199,20 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
         parcelleId = await _parcelleDatasource.insertParcelle(_parcelle!);
       }
 
-      // Handle Personne
-      final personneWithParcelleId = _personne!.copyWith(
-        id: _existingPersonneId,
+      // Handle Contribuable
+      final contribuableWithParcelleId = _contribuable!.copyWith(
+        id: _existingContribuableId,
         parcelleId: parcelleId,
       );
       
-      if (_existingPersonneId != null) {
-        await _personneDatasource.updatePersonne(personneWithParcelleId);
+      if (_existingContribuableId != null) {
+        await _contribuableDatasource.updateContribuable(contribuableWithParcelleId);
       } else {
-        await _personneDatasource.insertPersonne(personneWithParcelleId);
+        await _contribuableDatasource.insertContribuable(contribuableWithParcelleId);
       }
 
-      // Handle Batiments
-      // Delete removed batiments
+      // Handle Batiments and Unités
+      // Delete removed batiments (cascade will delete their unités)
       final currentBatimentIds = _batiments
           .where((b) => b.id != null)
           .map((b) => b.id!)
@@ -197,13 +223,66 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
         }
       }
 
-      // Insert or update batiments
-      for (final batiment in _batiments) {
+      // Insert or update batiments and their unités
+      for (int i = 0; i < _batiments.length; i++) {
+        final batiment = _batiments[i];
         final batimentWithParcelleId = batiment.copyWith(parcelleId: parcelleId);
+        int batimentId;
+
         if (batiment.id != null && _existingBatimentIds.contains(batiment.id)) {
           await _batimentDatasource.updateBatiment(batimentWithParcelleId);
+          batimentId = batiment.id!;
         } else {
-          await _batimentDatasource.insertBatiment(batimentWithParcelleId);
+          batimentId = await _batimentDatasource.insertBatiment(batimentWithParcelleId);
+        }
+
+        // Handle unités for this batiment
+        final unites = _unitesPerBatiment[i] ?? [];
+        
+        // Find the original batiment index to get existing unite IDs
+        int? originalIndex;
+        if (batiment.id != null) {
+          originalIndex = _existingBatimentIds.indexOf(batiment.id!);
+          if (originalIndex == -1) originalIndex = null;
+        }
+        final existingIds = originalIndex != null ? (_existingUniteIds[originalIndex] ?? []) : <int>[];
+
+        // Delete removed unités
+        final currentUniteIds = unites
+            .where((u) => u.id != null)
+            .map((u) => u.id!)
+            .toList();
+        for (final oldUniteId in existingIds) {
+          if (!currentUniteIds.contains(oldUniteId)) {
+            await _uniteDatasource.deleteUnite(oldUniteId);
+          }
+        }
+
+        // Insert or update unités
+        for (final unite in unites) {
+          // Persist locataire as a ContribuableEntity if present
+          int? locataireContribuableId = unite.contribuableId;
+          if (unite.locataire != null) {
+            final locataireEntity = unite.locataire!.copyWith(
+              updatedAt: DateTime.now(),
+            );
+            if (locataireEntity.id != null) {
+              await _contribuableDatasource.updateContribuable(locataireEntity);
+              locataireContribuableId = locataireEntity.id;
+            } else {
+              locataireContribuableId = await _contribuableDatasource.insertContribuable(locataireEntity);
+            }
+          }
+
+          final uniteWithIds = unite.copyWith(
+            batimentId: batimentId,
+            contribuableId: locataireContribuableId,
+          );
+          if (unite.id != null && existingIds.contains(unite.id)) {
+            await _uniteDatasource.updateUnite(uniteWithIds);
+          } else {
+            await _uniteDatasource.insertUnite(uniteWithIds);
+          }
         }
       }
 
@@ -304,15 +383,15 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
           ),
           Step(
             title: const Text('Propriétaire'),
-            subtitle: _personne != null 
-                ? Text(_personne!.displayName)
+            subtitle: _contribuable != null 
+                ? Text(_contribuable!.displayName)
                 : null,
-            content: PersonneForm(
-              key: _personneFormKey,
-              personne: _personne,
+            content: ContribuableForm(
+              key: _contribuableFormKey,
+              contribuable: _contribuable,
               showAppBar: false,
-              onSave: (personne) {
-                _personne = personne;
+              onSave: (contribuable) {
+                _contribuable = contribuable;
               },
             ),
             isActive: _currentStep >= 1,
@@ -326,8 +405,12 @@ class _ImmobilierWizardState extends State<ImmobilierWizard> {
             content: BatimentListStep(
               key: _batimentListKey,
               batiments: _batiments,
+              unitesPerBatiment: _unitesPerBatiment,
               onBatimentsChanged: (batiments) {
                 _batiments = batiments;
+              },
+              onUnitesChanged: (unitesMap) {
+                _unitesPerBatiment = unitesMap;
               },
             ),
             isActive: _currentStep >= 2,
