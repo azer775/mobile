@@ -38,6 +38,7 @@ public class ParcelleController {
             parcelleService.saveAllWithPhotos(dtos, photos != null ? photos : List.of());
             return ResponseEntity.ok("Opération terminée avec succès. " + dtos.size() + " parcelle(s) enregistrée(s).");
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body("Erreur lors du traitement: " + e.getMessage());
         }
     }

@@ -105,7 +105,19 @@ class ParcelleExportService {
           final batDto = bat.toDto();
           if (bat.id != null) {
             final unites = await _uniteDatasource.getUnitesByBatimentId(bat.id!);
-            batDto['unites'] = unites.map((u) => u.toDto()).toList();
+            final uniteDtos = <Map<String, dynamic>>[];
+            for (final u in unites) {
+              final uDto = u.toDto();
+              // Load the locataire contribuable if linked
+              if (u.contribuableId != null) {
+                final locataire = await _contribuableDatasource.getContribuableById(u.contribuableId!);
+                if (locataire != null) {
+                  uDto['locataire'] = locataire.toDto();
+                }
+              }
+              uniteDtos.add(uDto);
+            }
+            batDto['unites'] = uniteDtos;
           } else {
             batDto['unites'] = [];
           }

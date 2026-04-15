@@ -14,6 +14,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -149,7 +152,7 @@ public class ParcelleService {
         unite.setSuperficie(dto.getSuperficie());
         unite.setMontantLoyer(dto.getMontantLoyer());
         if (dto.getDateDebutLoyer() != null) {
-            unite.setDateDebutLoyer(Instant.parse(dto.getDateDebutLoyer()));
+            unite.setDateDebutLoyer(parseFlutterDate(dto.getDateDebutLoyer()));
         }
         unite.setCreatedAt(Instant.now());
 
@@ -159,6 +162,15 @@ public class ParcelleService {
         }
 
         return unite;
+    }
+
+    private Instant parseFlutterDate(String dateStr) {
+        try {
+            return Instant.parse(dateStr);
+        } catch (DateTimeParseException e) {
+            // Flutter sends dates without Z suffix (e.g. 2024-01-15T00:00:00.000)
+            return LocalDateTime.parse(dateStr).toInstant(ZoneOffset.UTC);
+        }
     }
 
     private Contribuable findOrCreateContribuable(ContribuableDto dto) {

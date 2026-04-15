@@ -31,11 +31,11 @@ public class Batiment {
     private Double surfaceBatieM2;
 
     @NotNull
-    @Column(name = "usage_principal", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "usage_principal", length = Integer.MAX_VALUE)
     private String usagePrincipal;
 
     @NotNull
-    @Column(name = "statut_batiment", nullable = false, length = Integer.MAX_VALUE)
+    @Column(name = "statut_batiment", length = Integer.MAX_VALUE)
     private String statutBatiment;
 
     @OneToMany(cascade = CascadeType.ALL)
