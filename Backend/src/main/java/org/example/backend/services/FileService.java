@@ -1,6 +1,8 @@
 package org.example.backend.services;
 
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
@@ -20,6 +22,8 @@ import java.util.UUID;
 @Service
 public class FileService {
 
+    private static final Logger log = LoggerFactory.getLogger(FileService.class);
+
     @Value("${file.upload-dir}")
     private String uploadDir;
 
@@ -27,7 +31,9 @@ public class FileService {
 
     @PostConstruct
     public void init() {
+        log.info("file.upload-dir raw value: '{}'", uploadDir);
         uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+        log.info("Resolved upload path: {}", uploadPath);
         try {
             Files.createDirectories(uploadPath);
         } catch (IOException e) {
